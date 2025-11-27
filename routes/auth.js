@@ -1,5 +1,6 @@
 const express = require('express');
 const { supabaseClient, supabaseAdmin } = require('../config/supabase');
+const { logBMIRecord, logSignUp, logSignIn } = require('../utils/transactionLogger');
 const router = express.Router();
 
 // Helper function to calculate BMI
@@ -40,11 +41,12 @@ router.get('/signup', async (req, res) => {
       .single();
 
     // ดึงข้อมูล BMI ทั้งหมดของ user
+    // ใช้ date แทน created_at ถ้า created_at ไม่มี (รองรับทั้งสองกรณี)
     const { data: bmiRecords, error: bmiError } = await supabaseAdmin
       .from('bmi_records')
       .select('*')
       .eq('user_id', user_id)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี) // ใช้ date แทน created_at
 
     if (bmiError) {
       console.error('Error fetching BMI:', bmiError);
@@ -152,7 +154,7 @@ router.post('/signup', async (req, res) => {
         .from('bmi_records')
         .select('*')
         .eq('user_id', user_id)
-        .order('created_at', { ascending: false });
+        .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
       if (bmiError) {
         return res.status(400).json({ 
@@ -364,7 +366,7 @@ router.post('/signup', async (req, res) => {
         .from('bmi_records')
         .select('*')
         .eq('user_id', data.user.id)
-        .order('created_at', { ascending: false });
+        .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
       
       if (fetchBmiError) {
         console.error('[AUTH /signup] Error fetching BMI records:', fetchBmiError);
@@ -419,6 +421,11 @@ router.post('/signup', async (req, res) => {
       };
 
       console.log('[AUTH /signup] ✅ Sending response with user_id:', data.user.id);
+      
+      // บันทึกประวัติการทำรายการ
+      await logSignUp(data.user.id, req);
+      await logBMIRecord(data.user.id, latestBmi, req);
+      
       return res.status(201).json(response);
     }
 
@@ -428,7 +435,7 @@ router.post('/signup', async (req, res) => {
         .from('bmi_records')
         .select('*')
         .eq('user_id', data.user.id)
-        .order('created_at', { ascending: false });
+        .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
       // ดึงข้อมูล user จาก users table (ถ้ามี)
       const { data: userData } = await supabaseAdmin
@@ -471,11 +478,14 @@ router.post('/signup', async (req, res) => {
         bmi_history: {
           latest: latestBmi,
           all: existingBmiRecords || [],
-          count: existingBmiRecords?.length || 0
-        }
-      };
+        count: existingBmiRecords?.length || 0
+      }
+    };
 
-      return res.status(201).json(response);
+    // บันทึกประวัติการทำรายการ (ไม่รอผลลัพธ์เพื่อไม่ให้ชะลอ response)
+    logSignUp(data.user.id, req).catch(err => console.error('[AUTH /signup] Error logging signup:', err));
+
+    return res.status(201).json(response);
     }
 
     // Format response สำหรับหน้าบ้าน
@@ -511,6 +521,9 @@ router.post('/signup', async (req, res) => {
         count: 0
       }
     };
+
+    // บันทึกประวัติการทำรายการ (ไม่รอผลลัพธ์เพื่อไม่ให้ชะลอ response)
+    logSignUp(data.user.id, req).catch(err => console.error('[AUTH /signup] Error logging signup:', err));
 
     res.status(201).json(response);
   } catch (error) {
@@ -680,7 +693,7 @@ router.post('/signin', async (req, res) => {
       .from('bmi_records')
       .select('*')
       .eq('user_id', data.user.id)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
     
     if (bmiError) {
       console.error('[AUTH /signin] Error fetching BMI records:', bmiError);
@@ -795,6 +808,9 @@ router.post('/signin', async (req, res) => {
       response.data.user.user_id = data.user.id;
     }
 
+    // บันทึกประวัติการทำรายการ
+    await logSignIn(data.user.id, req);
+
     res.json(response);
   } catch (error) {
     console.error('Error in signin:', error);
@@ -892,7 +908,7 @@ router.get('/profile', async (req, res) => {
       .from('bmi_records')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
     if (bmiError) {
       console.error('Error fetching BMI:', bmiError);
@@ -986,7 +1002,7 @@ router.post('/profile', async (req, res) => {
       .from('bmi_records')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
     if (bmiError) {
       console.error('[AUTH POST /profile] Error fetching BMI:', bmiError);
@@ -1065,7 +1081,7 @@ router.get('/me', async (req, res) => {
       .from('bmi_records')
       .select('*')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
     // ดึงข้อมูล user จาก users table (ถ้ามี)
     const { data: userData } = await supabaseAdmin
@@ -1177,7 +1193,7 @@ router.get('/user', async (req, res) => {
       .from('bmi_records')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
     if (bmiError) {
       console.error('Error fetching BMI:', bmiError);
@@ -1233,7 +1249,7 @@ router.get('/user/:userId', async (req, res) => {
       .from('bmi_records')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
     // พยายามดึงข้อมูล user จาก users table (ถ้ามี)
     const { data: userData } = await supabaseAdmin
@@ -1281,7 +1297,7 @@ router.post('/bmi', async (req, res) => {
         .from('bmi_records')
         .select('*')
         .eq('user_id', user_id)
-        .order('created_at', { ascending: false })
+        .order('id', { ascending: false }) // ใช้ id แทน created_at (รองรับทุกกรณี)
         .limit(1)
         .single();
 
@@ -1308,7 +1324,7 @@ router.post('/bmi', async (req, res) => {
         .from('bmi_records')
         .select('*', { count: 'exact' })
         .eq('user_id', user_id)
-        .order('created_at', { ascending: false });
+        .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
       if (error) {
         return res.status(400).json({ 

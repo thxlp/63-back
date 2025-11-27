@@ -36,6 +36,10 @@ try {
   const dataRoutes = require('./routes/data');
   const openfoodfactsRoutes = require('./routes/openfoodfacts');
   const barcodeRoutes = require('./routes/barcode');
+  const transactionRoutes = require('./routes/transactions');
+  const calorieLogsRoutes = require('./routes/calorie_logs');
+  const cartRoutes = require('./routes/cart');
+  const recipesRoutes = require('./routes/recipes');
   console.log('✅ All routes loaded successfully');
 
   // API Routes (ต้องอยู่ก่อน static files)
@@ -44,6 +48,10 @@ try {
   app.use('/api/data', dataRoutes);
   app.use('/api/openfoodfacts', openfoodfactsRoutes);
   app.use('/api/barcode', barcodeRoutes);
+  app.use('/api/transactions', transactionRoutes);
+  app.use('/api/calorie_logs', calorieLogsRoutes);
+  app.use('/api/cart', cartRoutes);
+  app.use('/api/recipes', recipesRoutes);
   console.log('✅ All routes mounted successfully');
 } catch (error) {
   console.error('❌ Error loading routes:', error);
@@ -61,7 +69,10 @@ app.get('/api/health', (req, res) => {
       users: '/api/users',
       data: '/api/data',
       openfoodfacts: '/api/openfoodfacts',
-      barcode: '/api/barcode'
+      barcode: '/api/barcode',
+      transactions: '/api/transactions',
+      cart: '/api/cart',
+      recipes: '/api/recipes'
     }
   });
 });
@@ -141,11 +152,24 @@ app.use((req, res) => {
       'POST /api/users/profile',
       'GET /api/users',
       'GET /api/data/:tableName',
+      'POST /api/data/calorie_logs (บันทึกข้อมูลแคลอรี่)',
+      'POST /api/calorie_logs (alternative endpoint)',
+      'POST /api/data/daily_logs (alternative endpoint)',
+      'POST /api/cart/save (บันทึกประวัติตะกร้า)',
+      'GET /api/cart/history?user_id=xxx (ดูประวัติตะกร้า)',
+      'GET /api/cart/latest?user_id=xxx (ดูตะกร้าล่าสุด)',
+      'DELETE /api/cart/:id (ลบประวัติตะกร้า)',
+      'PUT /api/cart/:id (อัปเดตสถานะตะกร้า)',
       'GET /api/openfoodfacts/search',
       'GET /api/openfoodfacts/product/:barcode',
       'GET /api/openfoodfacts/random',
+      'GET /api/recipes/search?q=xxx&number=20 (ค้นหาสูตรอาหาร)',
+      'GET /api/recipes/:id (ดูรายละเอียดสูตรอาหาร)',
       'POST /api/barcode/scan',
       'POST /api/barcode/read',
+      'POST /api/transactions (บันทึกประวัติการทำรายการ)',
+      'GET /api/transactions?user_id=... (ดูประวัติการทำรายการ)',
+      'GET /api/transactions/stats/:user_id (สถิติการทำรายการ)',
       'GET /example.html',
       'GET /barcode-scanner.html'
     ]
@@ -157,13 +181,14 @@ app.listen(PORT, () => {
   console.log(`🚀 Server Running`);
   console.log(`   Running on http://localhost:${PORT}`);
   console.log(`   Routes:`);
-  console.log(`   - /api/auth (Login/Register with BMI)`);
-  console.log(`   - /api/users (User Management)`);
-  console.log(`   - /api/data (Data Operations)`);
-  console.log(`   - /api/openfoodfacts (OpenFoodFacts API)`);
-  console.log(`   - /api/barcode (Barcode Scanning)`);
-  console.log(`   - /example.html (OpenFoodFacts Example)`);
-  console.log(`   - /barcode-scanner.html (Barcode Scanner)`);
+    console.log(`   - /api/auth (Login/Register with BMI)`);
+    console.log(`   - /api/users (User Management)`);
+    console.log(`   - /api/data (Data Operations)`);
+    console.log(`   - /api/openfoodfacts (OpenFoodFacts API)`);
+    console.log(`   - /api/barcode (Barcode Scanning)`);
+    console.log(`   - /api/transactions (Transaction History)`);
+    console.log(`   - /example.html (OpenFoodFacts Example)`);
+    console.log(`   - /barcode-scanner.html (Barcode Scanner)`);
   console.log(`========================================`);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

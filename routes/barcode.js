@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { MultiFormatReader, BarcodeFormat, DecodeHintType, RGBLuminanceSource, BinaryBitmap, HybridBinarizer } = require('@zxing/library');
 const axios = require('axios');
+const { logBarcodeScan } = require('../utils/transactionLogger');
 const router = express.Router();
 
 // สำหรับ Jimp เวอร์ชัน 1.6.0 ต้องใช้ Jimp.Jimp เป็น constructor
@@ -373,6 +374,15 @@ router.post('/scan', (req, res, next) => {
         data_quality_tags: product.data_quality_tags || []
       };
 
+      // บันทึกประวัติการทำรายการ (ไม่รอผลลัพธ์เพื่อไม่ให้ชะลอ response)
+      // ต้องดึง user_id จาก request (อาจมาจาก query, body, หรือ token)
+      const userId = req.body?.user_id || req.query?.user_id || null;
+      if (userId) {
+        logBarcodeScan(userId, barcode, formattedProduct, req).catch(err => 
+          console.error('[BARCODE /scan] Error logging transaction:', err)
+        );
+      }
+
       res.json({
         success: true,
         barcode: barcode,
@@ -381,6 +391,13 @@ router.post('/scan', (req, res, next) => {
 
     } catch (apiError) {
       // ถ้าไม่พบข้อมูลใน OpenFoodFacts แต่อ่านบาร์โค้ดได้
+      const userId = req.body?.user_id || req.query?.user_id || null;
+      if (userId) {
+        logBarcodeScan(userId, barcode, null, req).catch(err => 
+          console.error('[BARCODE /scan] Error logging transaction:', err)
+        );
+      }
+
       res.json({
         success: true,
         barcode: barcode,

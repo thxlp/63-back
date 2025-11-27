@@ -82,30 +82,60 @@ Server จะเริ่มทำงานที่ `http://localhost:3002`
 ## โครงสร้างโฟลเดอร์
 
 ```
-Project_tcx/
-├── config/
-│   └── supabase.js          # Supabase client configuration
-├── routes/
-│   ├── auth.js              # Authentication routes
-│   ├── users.js             # User management routes
-│   └── data.js              # Generic data operations
-├── middleware/
-│   └── auth.js              # Authentication middleware
-├── index.js                 # Main server file
-├── .env                     # Environment variables (local)
-├── .env.example             # Environment variables template
-├── package.json             # Dependencies
-└── README.md                # Documentation
+Project_63_back/
+├── 📁 config/              # Configuration files
+│   └── supabase.js        # Supabase client configuration
+│
+├── 📁 routes/              # API Routes (Endpoints)
+│   ├── auth.js            # Authentication routes
+│   ├── users.js           # User management routes
+│   ├── data.js            # Generic data operations
+│   ├── openfoodfacts.js   # OpenFoodFacts API integration
+│   └── barcode.js         # Barcode scanning routes
+│
+├── 📁 middleware/          # Express Middleware
+│   └── auth.js            # Authentication middleware
+│
+├── 📁 database/            # Database related files
+│   ├── migrations/        # SQL migration scripts
+│   └── examples/          # Example SQL scripts
+│
+├── 📁 scripts/             # Utility scripts
+│   ├── deploy.bat         # Windows deployment script
+│   ├── deploy.sh          # Linux/Mac deployment script
+│   ├── check-server.js    # Server health check
+│   └── test_database_connection.js  # Database test
+│
+├── 📁 docs/                # Documentation
+│   └── examples/           # Example code for frontend
+│
+├── 📁 public/               # Static files (HTML, CSS, JS)
+│
+├── 📄 index.js             # Main server file (Entry point)
+├── 📄 package.json         # Dependencies and scripts
+├── 📄 .env                 # Environment variables (ไม่ commit)
+├── 📄 .gitignore           # Git ignore rules
+├── 📄 README.md            # Main documentation
+└── 📄 PROJECT_STRUCTURE.md # โครงสร้างโปรเจคแบบละเอียด
 ```
+
+**ดูรายละเอียดเพิ่มเติม**: [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)
 
 ## ตัวอย่างการใช้ Frontend
 
-### JavaScript/Axios
+ดูตัวอย่างโค้ดที่สมบูรณ์ได้ที่:
+- [docs/examples/FRONTEND_API_REQUESTS.js](./docs/examples/FRONTEND_API_REQUESTS.js) - ตัวอย่างการเรียกใช้ API ทั้งหมด
+- [docs/examples/FRONTEND_FOOD_SEARCH_API.js](./docs/examples/FRONTEND_FOOD_SEARCH_API.js) - ตัวอย่างการค้นหาอาหาร
+
+### ตัวอย่างเบื้องต้น
+
 ```javascript
 // Sign Up
 const response = await axios.post('http://localhost:3002/api/auth/signup', {
   email: 'user@example.com',
-  password: 'password123'
+  password: 'password123',
+  weight: 70,
+  height: 175
 });
 
 // Sign In
@@ -121,17 +151,8 @@ const user = await axios.get('http://localhost:3002/api/auth/me', {
   }
 });
 
-// Get all users
-const users = await axios.get('http://localhost:3002/api/users');
-
-// Get data from table
-const data = await axios.get('http://localhost:3002/api/data/your_table_name?limit=10&offset=0');
-
-// Create data
-const newData = await axios.post('http://localhost:3002/api/data/your_table_name', {
-  name: 'Test',
-  description: 'Test description'
-});
+// Search food
+const foods = await axios.get('http://localhost:3002/api/openfoodfacts/search?q=chocolate');
 ```
 
 ## CORS Configuration
@@ -144,13 +165,13 @@ Frontend สามารถเชื่อมต่อจากโดเมน�
 
 **Windows:**
 ```bash
-deploy.bat
+scripts\deploy.bat
 ```
 
 **Linux/Mac:**
 ```bash
-chmod +x deploy.sh
-./deploy.sh
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
 ```
 
 ### วิธีที่ 2: ใช้ Git Command Line
@@ -172,7 +193,11 @@ git commit -m "Initial commit: Backend API with Supabase integration"
 git push -u origin main
 ```
 
-ดูรายละเอียดเพิ่มเติมที่ [DEPLOY.md](./DEPLOY.md)
+ดูรายละเอียดเพิ่มเติม:
+- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - โครงสร้างโปรเจค
+- [scripts/README.md](./scripts/README.md) - เอกสาร scripts
+- [database/README.md](./database/README.md) - เอกสาร database
+- [docs/README.md](./docs/README.md) - เอกสารและ examples
 
 ## Troubleshooting
 

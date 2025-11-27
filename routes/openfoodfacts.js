@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const { logFoodSearch } = require('../utils/transactionLogger');
 const router = express.Router();
 
 // Base URL for OpenFoodFacts API
@@ -7,11 +8,29 @@ const OPENFOODFACTS_API = 'https://world.openfoodfacts.org';
 
 // Configure axios with timeout
 const axiosConfig = {
-  timeout: 15000, // 15 seconds timeout
+  timeout: 30000, // 30 seconds timeout (เพิ่มจาก 15 เป็น 30 วินาที)
   headers: {
     'User-Agent': 'TCX-Backend/1.0'
   }
 };
+
+// Helper function สำหรับ retry request
+async function retryRequest(requestFn, maxRetries = 2, delay = 1000) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      // ถ้าเป็น timeout และยังมี retry อยู่ ให้ลองใหม่
+      if ((error.code === 'ECONNABORTED' || error.message.includes('timeout')) && i < maxRetries - 1) {
+        console.log(`[OPENFOODFACTS] Retry attempt ${i + 1}/${maxRetries} after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+        continue;
+      }
+      throw error;
+    }
+  }
+}
 
 /**
  * ค้นหาสินค้าจาก OpenFoodFacts
@@ -35,17 +54,20 @@ router.get('/search', async (req, res) => {
     console.log('[OPENFOODFACTS /search] Searching for:', q);
     console.log('[OPENFOODFACTS /search] Calling OpenFoodFacts API...');
 
-    const response = await axios.get(`${OPENFOODFACTS_API}/cgi/search.pl`, {
-      ...axiosConfig,
-      params: {
-        search_terms: q.trim(),
-        search_simple: 1,
-        action: 'process',
-        json: 1,
-        page_size: Math.min(parseInt(page_size) || 20, 100), // จำกัดสูงสุด 100
-        page: Math.max(parseInt(page) || 1, 1) // อย่างน้อยหน้า 1
-      }
-    });
+    // ใช้ retry logic สำหรับการเรียก API
+    const response = await retryRequest(() => 
+      axios.get(`${OPENFOODFACTS_API}/cgi/search.pl`, {
+        ...axiosConfig,
+        params: {
+          search_terms: q.trim(),
+          search_simple: 1,
+          action: 'process',
+          json: 1,
+          page_size: Math.min(parseInt(page_size) || 20, 100), // จำกัดสูงสุด 100
+          page: Math.max(parseInt(page) || 1, 1) // อย่างน้อยหน้า 1
+        }
+      })
+    );
 
     console.log('[OPENFOODFACTS /search] ✅ API response received');
     console.log('[OPENFOODFACTS /search] Response status:', response.status);
@@ -127,6 +149,14 @@ router.get('/search', async (req, res) => {
       page: result.page
     });
 
+    // บันทึกประวัติการทำรายการ (ไม่รอผลลัพธ์เพื่อไม่ให้ชะลอ response)
+    const userId = req.query?.user_id || req.body?.user_id || null;
+    if (userId) {
+      logFoodSearch(userId, q, result.count, req).catch(err => 
+        console.error('[OPENFOODFACTS /search] Error logging transaction:', err)
+      );
+    }
+
     res.json(result);
   } catch (error) {
     console.error('[OPENFOODFACTS /search] ❌ Error:', error.message);
@@ -136,11 +166,34 @@ router.get('/search', async (req, res) => {
     // Handle timeout errors
     if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
       console.error('[OPENFOODFACTS /search] ⏱️  Timeout error');
+      
+      // บันทึกประวัติการทำรายการที่ล้มเหลว
+      const userId = req.query?.user_id || req.body?.user_id || null;
+      if (userId) {
+        const { logTransaction } = require('../utils/transactionLogger');
+        logTransaction({
+          user_id: userId,
+          transaction_type: 'food_search',
+          action: 'ค้นหาอาหาร',
+          description: `ค้นหาอาหาร: "${q}" - Timeout`,
+          metadata: {
+            query: q,
+            error: 'timeout',
+            error_code: error.code
+          },
+          status: 'failed',
+          req: req
+        }).catch(err => 
+          console.error('[OPENFOODFACTS /search] Error logging failed transaction:', err)
+        );
+      }
+      
       return res.status(504).json({ 
         success: false,
         error: 'OpenFoodFacts API timeout - กรุณาลองใหม่อีกครั้ง',
-        details: 'การเชื่อมต่อกับ OpenFoodFacts ใช้เวลานานเกินไป',
-        suggestion: 'กรุณาลองใหม่อีกครั้งในภายหลัง หรือลองค้นหาด้วยคำอื่น'
+        details: 'การเชื่อมต่อกับ OpenFoodFacts ใช้เวลานานเกินไป (30 วินาที)',
+        suggestion: 'กรุณาลองใหม่อีกครั้งในภายหลัง หรือลองค้นหาด้วยคำอื่น',
+        retry_suggestion: 'ระบบจะลองใหม่อัตโนมัติ 2 ครั้ง หากยังไม่สำเร็จกรุณาลองใหม่ภายหลัง'
       });
     }
     
@@ -166,6 +219,18 @@ router.get('/search', async (req, res) => {
       });
     }
     
+    // Handle 402 Payment Required (อาจมาจาก OpenFoodFacts หรือ proxy)
+    if (error.response && error.response.status === 402) {
+      console.error('[OPENFOODFACTS /search] 💳 402 Payment Required');
+      return res.status(402).json({ 
+        success: false,
+        error: 'OpenFoodFacts API ต้องการการชำระเงิน',
+        details: 'OpenFoodFacts API อาจจำกัดการใช้งาน กรุณาลองใหม่อีกครั้งในภายหลัง',
+        suggestion: 'กรุณารอสักครู่แล้วลองใหม่อีกครั้ง หรือลองค้นหาด้วยคำอื่น',
+        products: []
+      });
+    }
+    
     // Handle 404 Not Found
     if (error.response && error.response.status === 404) {
       console.error('[OPENFOODFACTS /search] 🔍 404 Not Found');
@@ -177,13 +242,87 @@ router.get('/search', async (req, res) => {
       });
     }
     
+    // Handle 422 Unprocessable Entity
+    if (error.response && error.response.status === 422) {
+      console.error('[OPENFOODFACTS /search] 📝 422 Unprocessable Entity');
+      return res.status(422).json({ 
+        success: false,
+        error: 'คำค้นหาไม่ถูกต้อง',
+        details: 'กรุณาตรวจสอบคำค้นหาและลองใหม่อีกครั้ง',
+        products: []
+      });
+    }
+    
+    // Handle 429 Too Many Requests (Rate Limiting)
+    if (error.response && error.response.status === 429) {
+      console.error('[OPENFOODFACTS /search] ⚡ 429 Too Many Requests');
+      return res.status(429).json({ 
+        success: false,
+        error: 'ส่งคำขอมากเกินไป',
+        details: 'OpenFoodFacts API จำกัดจำนวนคำขอ กรุณารอสักครู่แล้วลองใหม่อีกครั้ง',
+        suggestion: 'กรุณารอ 1-2 นาทีแล้วลองใหม่อีกครั้ง',
+        products: []
+      });
+    }
+    
     // Generic error
     console.error('[OPENFOODFACTS /search] ❌ Generic error:', error);
-    res.status(error.response?.status || 500).json({ 
+    console.error('[OPENFOODFACTS /search] Error response status:', error.response?.status);
+    console.error('[OPENFOODFACTS /search] Error response data:', error.response?.data);
+    
+    // บันทึกประวัติการทำรายการที่ล้มเหลว
+    const userId = req.query?.user_id || req.body?.user_id || null;
+    if (userId) {
+      const { logTransaction } = require('../utils/transactionLogger');
+      logTransaction({
+        user_id: userId,
+        transaction_type: 'food_search',
+        action: 'ค้นหาอาหาร',
+        description: `ค้นหาอาหาร: "${q}" - Error: ${error.message}`,
+        metadata: {
+          query: q,
+          error: error.message,
+          error_code: error.code,
+          status_code: error.response?.status
+        },
+        status: 'failed',
+        req: req
+      }).catch(err => 
+        console.error('[OPENFOODFACTS /search] Error logging failed transaction:', err)
+      );
+    }
+    
+    // ตรวจสอบ status code จาก OpenFoodFacts
+    const statusCode = error.response?.status || 500;
+    
+    // ถ้าเป็น 402 ให้ return 402 (ไม่แปลงเป็น 500)
+    if (statusCode === 402) {
+      return res.status(402).json({ 
+        success: false,
+        error: 'OpenFoodFacts API ต้องการการชำระเงิน',
+        details: 'OpenFoodFacts API อาจจำกัดการใช้งาน กรุณาลองใหม่อีกครั้งในภายหลัง',
+        suggestion: 'กรุณารอสักครู่แล้วลองใหม่อีกครั้ง',
+        products: []
+      });
+    }
+    
+    // สำหรับ status codes อื่นๆ ที่ไม่ใช่ 2xx, 3xx
+    if (statusCode >= 400 && statusCode < 500) {
+      return res.status(statusCode).json({ 
+        success: false,
+        error: 'เกิดข้อผิดพลาดในการค้นหาข้อมูล',
+        details: error.response?.data?.message || error.message,
+        status: statusCode,
+        products: []
+      });
+    }
+    
+    // สำหรับ 5xx หรือ error อื่นๆ
+    res.status(500).json({ 
       success: false,
       error: 'เกิดข้อผิดพลาดในการค้นหาข้อมูล',
       details: error.response?.data?.message || error.message,
-      status: error.response?.status || 500
+      status: statusCode
     });
   }
 });
@@ -313,7 +452,28 @@ router.get('/product/:barcode', async (req, res) => {
       });
     }
     
-    res.status(error.response?.status || 500).json({ 
+    // Handle 402 Payment Required
+    if (error.response && error.response.status === 402) {
+      return res.status(402).json({ 
+        error: 'OpenFoodFacts API ต้องการการชำระเงิน',
+        details: 'OpenFoodFacts API อาจจำกัดการใช้งาน กรุณาลองใหม่อีกครั้งในภายหลัง'
+      });
+    }
+    
+    // ตรวจสอบ status code จาก OpenFoodFacts
+    const statusCode = error.response?.status || 500;
+    
+    // ถ้าเป็น 4xx ให้ return status code นั้น
+    if (statusCode >= 400 && statusCode < 500) {
+      return res.status(statusCode).json({ 
+        error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า',
+        details: error.response?.data?.message || error.message,
+        status: statusCode
+      });
+    }
+    
+    // สำหรับ 5xx หรือ error อื่นๆ
+    res.status(500).json({ 
       error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า',
       details: error.response?.data?.message || error.message
     });
@@ -390,7 +550,28 @@ router.get('/random', async (req, res) => {
       });
     }
     
-    res.status(error.response?.status || 500).json({ 
+    // Handle 402 Payment Required
+    if (error.response && error.response.status === 402) {
+      return res.status(402).json({ 
+        error: 'OpenFoodFacts API ต้องการการชำระเงิน',
+        details: 'OpenFoodFacts API อาจจำกัดการใช้งาน กรุณาลองใหม่อีกครั้งในภายหลัง'
+      });
+    }
+    
+    // ตรวจสอบ status code จาก OpenFoodFacts
+    const statusCode = error.response?.status || 500;
+    
+    // ถ้าเป็น 4xx ให้ return status code นั้น
+    if (statusCode >= 400 && statusCode < 500) {
+      return res.status(statusCode).json({ 
+        error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้าแบบสุ่ม',
+        details: error.response?.data?.message || error.message,
+        status: statusCode
+      });
+    }
+    
+    // สำหรับ 5xx หรือ error อื่นๆ
+    res.status(500).json({ 
       error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้าแบบสุ่ม',
       details: error.response?.data?.message || error.message
     });

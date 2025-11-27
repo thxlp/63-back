@@ -51,7 +51,7 @@ router.get('/profile', async (req, res) => {
       .from('bmi_records')
       .select('*')
       .eq('user_id', user_id)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน created_at (รองรับทุกกรณี)
 
     // Format response - Format 1: ส่งข้อมูลโดยตรง (ตรงตามข้อกำหนด)
     const latestBmi = bmiRecords && bmiRecords.length > 0 ? bmiRecords[0] : null;
@@ -110,7 +110,7 @@ router.post('/profile', async (req, res) => {
       .from('bmi_records')
       .select('*')
       .eq('user_id', user_id)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false }); // ใช้ id แทน created_at (รองรับทุกกรณี)
 
     const latestBmi = bmiRecords && bmiRecords.length > 0 ? bmiRecords[0] : null;
 

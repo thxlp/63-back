@@ -57,15 +57,15 @@ router.get('/search', async (req, res) => {
     // ใช้ retry logic สำหรับการเรียก API
     const response = await retryRequest(() => 
       axios.get(`${OPENFOODFACTS_API}/cgi/search.pl`, {
-        ...axiosConfig,
-        params: {
-          search_terms: q.trim(),
-          search_simple: 1,
-          action: 'process',
-          json: 1,
-          page_size: Math.min(parseInt(page_size) || 20, 100), // จำกัดสูงสุด 100
-          page: Math.max(parseInt(page) || 1, 1) // อย่างน้อยหน้า 1
-        }
+      ...axiosConfig,
+      params: {
+        search_terms: q.trim(),
+        search_simple: 1,
+        action: 'process',
+        json: 1,
+        page_size: Math.min(parseInt(page_size) || 20, 100), // จำกัดสูงสุด 100
+        page: Math.max(parseInt(page) || 1, 1) // อย่างน้อยหน้า 1
+      }
       })
     );
 

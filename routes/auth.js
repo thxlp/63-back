@@ -478,14 +478,14 @@ router.post('/signup', async (req, res) => {
         bmi_history: {
           latest: latestBmi,
           all: existingBmiRecords || [],
-        count: existingBmiRecords?.length || 0
-      }
-    };
+          count: existingBmiRecords?.length || 0
+        }
+      };
 
     // บันทึกประวัติการทำรายการ (ไม่รอผลลัพธ์เพื่อไม่ให้ชะลอ response)
     logSignUp(data.user.id, req).catch(err => console.error('[AUTH /signup] Error logging signup:', err));
 
-    return res.status(201).json(response);
+      return res.status(201).json(response);
     }
 
     // Format response สำหรับหน้าบ้าน

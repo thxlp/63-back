@@ -181,14 +181,14 @@ app.listen(PORT, () => {
   console.log(`🚀 Server Running`);
   console.log(`   Running on http://localhost:${PORT}`);
   console.log(`   Routes:`);
-    console.log(`   - /api/auth (Login/Register with BMI)`);
-    console.log(`   - /api/users (User Management)`);
-    console.log(`   - /api/data (Data Operations)`);
-    console.log(`   - /api/openfoodfacts (OpenFoodFacts API)`);
-    console.log(`   - /api/barcode (Barcode Scanning)`);
+  console.log(`   - /api/auth (Login/Register with BMI)`);
+  console.log(`   - /api/users (User Management)`);
+  console.log(`   - /api/data (Data Operations)`);
+  console.log(`   - /api/openfoodfacts (OpenFoodFacts API)`);
+  console.log(`   - /api/barcode (Barcode Scanning)`);
     console.log(`   - /api/transactions (Transaction History)`);
-    console.log(`   - /example.html (OpenFoodFacts Example)`);
-    console.log(`   - /barcode-scanner.html (Barcode Scanner)`);
+  console.log(`   - /example.html (OpenFoodFacts Example)`);
+  console.log(`   - /barcode-scanner.html (Barcode Scanner)`);
   console.log(`========================================`);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

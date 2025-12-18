@@ -199,13 +199,15 @@ router.get('/search', async (req, res) => {
 });
 
 /**
- * ดึงรายละเอียดสูตรอาหาร
- * GET /api/recipes/:id
+ * ดึงข้อมูลโภชนาการของสูตรอาหาร
+ * GET /api/recipes/:id/nutrition
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id/nutrition', async (req, res) => {
   try {
     const { id } = req.params;
     const { user_id = null } = req.query;
+
+    console.log('[RECIPES /:id/nutrition] Request:', { id, user_id });
 
     if (!id) {
       return res.status(400).json({
@@ -216,12 +218,94 @@ router.get('/:id', async (req, res) => {
 
     // ตรวจสอบ API key
     if (!SPOONACULAR_API_KEY) {
+      console.error('[RECIPES /:id/nutrition] ❌ Spoonacular API key not configured');
       return res.status(503).json({
         success: false,
         error: 'Spoonacular API key ไม่ได้ตั้งค่า',
         message: 'กรุณาติดต่อผู้ดูแลระบบ'
       });
     }
+
+    console.log('[RECIPES /:id/nutrition] Calling Spoonacular API...');
+
+    const response = await axios.get(`${SPOONACULAR_API}/recipes/${id}/nutritionWidget.json`, {
+      ...axiosConfig,
+      params: {
+        apiKey: SPOONACULAR_API_KEY
+      }
+    });
+
+    console.log('[RECIPES /:id/nutrition] ✅ API response received');
+
+    // Return response แบบเดียวกับ Spoonacular API
+    res.json(response.data);
+  } catch (error) {
+    console.error('[RECIPES /:id/nutrition] ❌ Error:', error.message);
+    console.error('[RECIPES /:id/nutrition] Error code:', error.code);
+    console.error('[RECIPES /:id/nutrition] Error response:', error.response?.status, error.response?.statusText);
+
+    // Handle 402 Payment Required
+    if (error.response && error.response.status === 402) {
+      return res.status(402).json({
+        success: false,
+        error: 'Spoonacular API ต้องการการชำระเงิน',
+        message: 'Spoonacular API key หมดอายุหรือ quota หมด'
+      });
+    }
+
+    // Handle 404 Not Found
+    if (error.response && error.response.status === 404) {
+      return res.status(404).json({
+        success: false,
+        error: 'ไม่พบข้อมูลโภชนาการของสูตรอาหารที่ระบุ'
+      });
+    }
+
+    // Handle timeout errors
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      return res.status(504).json({
+        success: false,
+        error: 'Spoonacular API timeout - กรุณาลองใหม่อีกครั้ง'
+      });
+    }
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: 'เกิดข้อผิดพลาดในการดึงข้อมูลโภชนาการ',
+      details: error.response?.data?.message || error.message
+    });
+  }
+});
+
+/**
+ * ดึงข้อมูลสูตรอาหาร
+ * GET /api/recipes/:id/information
+ */
+router.get('/:id/information', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id = null } = req.query;
+
+    console.log('[RECIPES /:id/information] Request:', { id, user_id });
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'กรุณาระบุ recipe ID'
+      });
+    }
+
+    // ตรวจสอบ API key
+    if (!SPOONACULAR_API_KEY) {
+      console.error('[RECIPES /:id/information] ❌ Spoonacular API key not configured');
+      return res.status(503).json({
+        success: false,
+        error: 'Spoonacular API key ไม่ได้ตั้งค่า',
+        message: 'กรุณาติดต่อผู้ดูแลระบบ'
+      });
+    }
+
+    console.log('[RECIPES /:id/information] Calling Spoonacular API...');
 
     const response = await axios.get(`${SPOONACULAR_API}/recipes/${id}/information`, {
       ...axiosConfig,
@@ -230,12 +314,14 @@ router.get('/:id', async (req, res) => {
       }
     });
 
-    res.json({
-      success: true,
-      recipe: response.data
-    });
+    console.log('[RECIPES /:id/information] ✅ API response received');
+
+    // Return response แบบเดียวกับ Spoonacular API โดยตรง
+    res.json(response.data);
   } catch (error) {
-    console.error('[RECIPES /:id] Error:', error.message);
+    console.error('[RECIPES /:id/information] ❌ Error:', error.message);
+    console.error('[RECIPES /:id/information] Error code:', error.code);
+    console.error('[RECIPES /:id/information] Error response:', error.response?.status, error.response?.statusText);
 
     // Handle 402 Payment Required
     if (error.response && error.response.status === 402) {
@@ -251,6 +337,93 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({
         success: false,
         error: 'ไม่พบสูตรอาหารที่ระบุ'
+      });
+    }
+
+    // Handle timeout errors
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      return res.status(504).json({
+        success: false,
+        error: 'Spoonacular API timeout - กรุณาลองใหม่อีกครั้ง'
+      });
+    }
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสูตรอาหาร',
+      details: error.response?.data?.message || error.message
+    });
+  }
+});
+
+/**
+ * ดึงรายละเอียดสูตรอาหาร (alias สำหรับ backward compatibility)
+ * GET /api/recipes/:id
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id = null } = req.query;
+
+    console.log('[RECIPES /:id] Request:', { id, user_id });
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'กรุณาระบุ recipe ID'
+      });
+    }
+
+    // ตรวจสอบ API key
+    if (!SPOONACULAR_API_KEY) {
+      console.error('[RECIPES /:id] ❌ Spoonacular API key not configured');
+      return res.status(503).json({
+        success: false,
+        error: 'Spoonacular API key ไม่ได้ตั้งค่า',
+        message: 'กรุณาติดต่อผู้ดูแลระบบ'
+      });
+    }
+
+    console.log('[RECIPES /:id] Calling Spoonacular API...');
+
+    const response = await axios.get(`${SPOONACULAR_API}/recipes/${id}/information`, {
+      ...axiosConfig,
+      params: {
+        apiKey: SPOONACULAR_API_KEY
+      }
+    });
+
+    console.log('[RECIPES /:id] ✅ API response received');
+
+    // Return response แบบเดียวกับ Spoonacular API โดยตรง (backward compatibility)
+    res.json(response.data);
+  } catch (error) {
+    console.error('[RECIPES /:id] ❌ Error:', error.message);
+    console.error('[RECIPES /:id] Error code:', error.code);
+    console.error('[RECIPES /:id] Error response:', error.response?.status, error.response?.statusText);
+
+    // Handle 402 Payment Required
+    if (error.response && error.response.status === 402) {
+      return res.status(402).json({
+        success: false,
+        error: 'Spoonacular API ต้องการการชำระเงิน',
+        message: 'Spoonacular API key หมดอายุหรือ quota หมด'
+      });
+    }
+
+    // Handle 404 Not Found
+    if (error.response && error.response.status === 404) {
+      return res.status(404).json({
+        success: false,
+        error: 'ไม่พบสูตรอาหารที่ระบุ'
+      });
+    }
+
+    // Handle timeout errors
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      return res.status(504).json({
+        success: false,
+        error: 'Spoonacular API timeout - กรุณาลองใหม่อีกครั้ง'
       });
     }
 

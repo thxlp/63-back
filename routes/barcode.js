@@ -11,22 +11,22 @@ const Jimp = require('jimp');
 // Helper function สำหรับอ่านรูปภาพด้วย Jimp
 async function readImageWithJimp(buffer) {
   const imageBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
-  
+
   // สำหรับ Jimp 1.6.0 ใช้ Jimp.Jimp.read() โดยตรง
   if (typeof Jimp.Jimp === 'function' && typeof Jimp.Jimp.read === 'function') {
     return await Jimp.Jimp.read(imageBuffer);
   }
-  
+
   // ลองใช้ Jimp.read() สำหรับเวอร์ชันเก่า
   if (typeof Jimp.read === 'function') {
     return await Jimp.read(imageBuffer);
   }
-  
+
   // ถ้ายังไม่ได้ ให้ลองใช้ constructor โดยตรง
   if (typeof Jimp === 'function') {
     return await Jimp(imageBuffer);
   }
-  
+
   // ถ้ายังไม่ได้ ให้ลองใช้ Jimp.default
   if (Jimp.default) {
     if (typeof Jimp.default.read === 'function') {
@@ -36,7 +36,7 @@ async function readImageWithJimp(buffer) {
       return await Jimp.default(imageBuffer);
     }
   }
-  
+
   throw new Error('Cannot read image with Jimp. Jimp version may not be compatible.');
 }
 
@@ -61,6 +61,36 @@ const upload = multer({
 const OPENFOODFACTS_API = 'https://world.openfoodfacts.org';
 
 /**
+ * @swagger
+ * tags:
+ *   name: Barcode
+ *   description: การสแกนบาร์โค้ดจากรูปภาพ
+ */
+
+/**
+ * @swagger
+ * /api/barcode/scan:
+ *   post:
+ *     summary: อ่านบาร์โค้ดจากรูปภาพและค้นหาข้อมูลสินค้า
+ *     tags: [Barcode]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: ข้อมูลสินค้าและบาร์โค้ด
+ *       400:
+ *         description: ไม่พบบาร์โค้ดหรือไฟล์ไม่ถูกต้อง
+ */
+
+/**
  * อ่านบาร์โค้ดจากรูปภาพ
  * POST /api/barcode/scan
  * Content-Type: multipart/form-data
@@ -71,13 +101,13 @@ router.post('/scan', (req, res, next) => {
     if (err) {
       // จัดการ multer errors
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'ไฟล์มีขนาดใหญ่เกินไป',
           details: 'ขนาดไฟล์สูงสุดที่อนุญาต: 50MB'
         });
       }
       if (err.message?.includes('กรุณาอัปโหลดไฟล์รูปภาพเท่านั้น')) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'รูปแบบไฟล์ไม่ถูกต้อง',
           details: err.message
         });
@@ -89,7 +119,7 @@ router.post('/scan', (req, res, next) => {
 }, async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'กรุณาอัปโหลดไฟล์รูปภาพ',
         details: 'ไม่พบไฟล์ใน request'
       });
@@ -97,7 +127,7 @@ router.post('/scan', (req, res, next) => {
 
     // ตรวจสอบขนาดไฟล์
     if (!req.file.buffer || req.file.buffer.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'ไฟล์ว่างเปล่า',
         details: 'กรุณาเลือกไฟล์รูปภาพที่ถูกต้อง'
       });
@@ -107,7 +137,7 @@ router.post('/scan', (req, res, next) => {
     const mimeType = req.file.mimetype;
     const buffer = req.file.buffer;
     const fileSize = buffer.length;
-    
+
     console.log('File info:', {
       mimetype: mimeType,
       size: fileSize,
@@ -116,17 +146,17 @@ router.post('/scan', (req, res, next) => {
     });
 
     // ตรวจสอบไฟล์ header เพื่อยืนยันว่าเป็นรูปภาพจริงๆ
-    const isJPEG = buffer.length >= 4 && 
-                   buffer[0] === 0xFF && buffer[1] === 0xD8 && 
-                   (buffer[2] === 0xFF || buffer[3] === 0xE0 || buffer[3] === 0xE1 || buffer[3] === 0xDB);
-    const isPNG = buffer.length >= 4 && 
-                  buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
-    const isGIF = buffer.length >= 4 && 
-                  buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38;
-    const isWebP = buffer.length >= 12 && 
-                   buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
-                   buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
-    
+    const isJPEG = buffer.length >= 4 &&
+      buffer[0] === 0xFF && buffer[1] === 0xD8 &&
+      (buffer[2] === 0xFF || buffer[3] === 0xE0 || buffer[3] === 0xE1 || buffer[3] === 0xDB);
+    const isPNG = buffer.length >= 4 &&
+      buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
+    const isGIF = buffer.length >= 4 &&
+      buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38;
+    const isWebP = buffer.length >= 12 &&
+      buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+      buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
+
     const isImage = isJPEG || isPNG || isGIF || isWebP;
 
     console.log('File header check:', {
@@ -160,10 +190,10 @@ router.post('/scan', (req, res, next) => {
       console.error('Jimp read error:', jimpError);
       console.error('Error message:', jimpError.message);
       console.error('Error stack:', jimpError.stack);
-      
+
       // ตรวจสอบ error type
       let errorDetails = 'กรุณาตรวจสอบว่าไฟล์เป็นรูปภาพที่ถูกต้อง (JPG, PNG, GIF, WebP)';
-      
+
       if (jimpError.message?.includes('Unsupported MIME type')) {
         errorDetails = `Jimp ไม่รองรับรูปแบบไฟล์: ${mimeType}. กรุณาลองแปลงไฟล์เป็น PNG หรือ JPG มาตรฐาน`;
       } else if (jimpError.message?.includes('Could not find MIME')) {
@@ -175,8 +205,8 @@ router.post('/scan', (req, res, next) => {
       } else if (jimpError.message?.includes('is not a function')) {
         errorDetails = 'เกิดข้อผิดพลาดในการอ่านไฟล์ กรุณาลอง restart server หรือติดตั้ง jimp ใหม่: npm install jimp';
       }
-      
-      return res.status(400).json({ 
+
+      return res.status(400).json({
         error: 'ไม่สามารถอ่านไฟล์รูปภาพได้',
         details: errorDetails,
         debug: process.env.NODE_ENV === 'development' ? {
@@ -187,14 +217,14 @@ router.post('/scan', (req, res, next) => {
         } : undefined
       });
     }
-    
+
     // แปลงเป็น RGBA format และปรับขนาดถ้าจำเป็น (ZXing ทำงานได้ดีกับรูปขนาดเล็ก)
     const maxWidth = 1200;
     if (image.bitmap.width > maxWidth) {
       // สำหรับ Jimp 1.6.0 ต้องใช้ object แทน number
       // คำนวณ height ใหม่ตามอัตราส่วน
       const newHeight = Math.round((image.bitmap.height * maxWidth) / image.bitmap.width);
-      
+
       // ลองใช้ object format ก่อน
       try {
         image = image.resize({ width: maxWidth, height: newHeight });
@@ -221,7 +251,7 @@ router.post('/scan', (req, res, next) => {
     const width = image.bitmap.width;
     const height = image.bitmap.height;
     const luminanceData = new Uint8ClampedArray(width * height);
-    
+
     // แปลง RGBA เป็น grayscale luminance
     for (let i = 0; i < image.bitmap.data.length; i += 4) {
       const r = image.bitmap.data[i];
@@ -252,7 +282,7 @@ router.post('/scan', (req, res, next) => {
     // อ่านบาร์โค้ดด้วย ZXing
     const reader = new MultiFormatReader();
     reader.setHints(hints);
-    
+
     let barcode = null;
     try {
       const result = reader.decode(binaryBitmap);
@@ -261,7 +291,7 @@ router.post('/scan', (req, res, next) => {
       // ถ้าอ่านไม่ได้ ลองปรับรูปภาพอีกครั้ง
       try {
         image = image.contrast(0.5).brightness(0.1);
-        
+
         // สร้าง luminance data ใหม่
         const newLuminanceData = new Uint8ClampedArray(width * height);
         for (let i = 0; i < image.bitmap.data.length; i += 4) {
@@ -271,14 +301,14 @@ router.post('/scan', (req, res, next) => {
           const luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
           newLuminanceData[i / 4] = luminance;
         }
-        
+
         const newLuminanceSource = new RGBLuminanceSource(newLuminanceData, width, height);
         const newBinaryBitmap = new BinaryBitmap(new HybridBinarizer(newLuminanceSource));
-        
+
         const result = reader.decode(newBinaryBitmap);
         barcode = result.getText();
       } catch (retryError) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'ไม่สามารถอ่านบาร์โค้ดจากรูปภาพได้',
           details: 'กรุณาตรวจสอบว่ารูปภาพมีบาร์โค้ดที่ชัดเจนและแสงสว่างเพียงพอ'
         });
@@ -286,8 +316,8 @@ router.post('/scan', (req, res, next) => {
     }
 
     if (!barcode) {
-      return res.status(400).json({ 
-        error: 'ไม่พบบาร์โค้ดในรูปภาพ' 
+      return res.status(400).json({
+        error: 'ไม่พบบาร์โค้ดในรูปภาพ'
       });
     }
 
@@ -378,7 +408,7 @@ router.post('/scan', (req, res, next) => {
       // ต้องดึง user_id จาก request (อาจมาจาก query, body, หรือ token)
       const userId = req.body?.user_id || req.query?.user_id || null;
       if (userId) {
-        logBarcodeScan(userId, barcode, formattedProduct, req).catch(err => 
+        logBarcodeScan(userId, barcode, formattedProduct, req).catch(err =>
           console.error('[BARCODE /scan] Error logging transaction:', err)
         );
       }
@@ -393,7 +423,7 @@ router.post('/scan', (req, res, next) => {
       // ถ้าไม่พบข้อมูลใน OpenFoodFacts แต่อ่านบาร์โค้ดได้
       const userId = req.body?.user_id || req.query?.user_id || null;
       if (userId) {
-        logBarcodeScan(userId, barcode, null, req).catch(err => 
+        logBarcodeScan(userId, barcode, null, req).catch(err =>
           console.error('[BARCODE /scan] Error logging transaction:', err)
         );
       }
@@ -409,23 +439,23 @@ router.post('/scan', (req, res, next) => {
   } catch (error) {
     console.error('Error scanning barcode:', error);
     console.error('Error stack:', error.stack);
-    
+
     // จัดการ error แต่ละประเภท
     if (error.message?.includes('Cannot read')) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'ไม่สามารถอ่านไฟล์ได้',
         details: 'กรุณาตรวจสอบว่าไฟล์เป็นรูปภาพที่ถูกต้อง'
       });
     }
-    
+
     if (error.message?.includes('Invalid')) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'ไฟล์ไม่ถูกต้อง',
         details: 'กรุณาเลือกไฟล์รูปภาพที่ถูกต้อง'
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       error: 'เกิดข้อผิดพลาดในการอ่านบาร์โค้ด',
       details: error.message || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ'
     });
@@ -433,23 +463,38 @@ router.post('/scan', (req, res, next) => {
 });
 
 /**
- * อ่านบาร์โค้ดจากรูปภาพ (เฉพาะบาร์โค้ด ไม่ดึงข้อมูลสินค้า)
- * POST /api/barcode/read
- * Content-Type: multipart/form-data
- * Body: file (รูปภาพ)
+ * @swagger
+ * /api/barcode/read:
+ *   post:
+ *     summary: อ่านบาร์โค้ดจากรูปภาพ (เฉพาะตัวเลขบาร์โค้ด)
+ *     tags: [Barcode]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: เลขบาร์โค้ด
  */
+// อ่านบาร์โค้ดจากรูปภาพ (เฉพาะบาร์โค้ด ไม่ดึงข้อมูลสินค้า)
 router.post('/read', (req, res, next) => {
   upload.single('image')(req, res, (err) => {
     if (err) {
       // จัดการ multer errors
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'ไฟล์มีขนาดใหญ่เกินไป',
           details: 'ขนาดไฟล์สูงสุดที่อนุญาต: 50MB'
         });
       }
       if (err.message?.includes('กรุณาอัปโหลดไฟล์รูปภาพเท่านั้น')) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'รูปแบบไฟล์ไม่ถูกต้อง',
           details: err.message
         });
@@ -461,8 +506,8 @@ router.post('/read', (req, res, next) => {
 }, async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ 
-        error: 'กรุณาอัปโหลดไฟล์รูปภาพ' 
+      return res.status(400).json({
+        error: 'กรุณาอัปโหลดไฟล์รูปภาพ'
       });
     }
 
@@ -470,7 +515,7 @@ router.post('/read', (req, res, next) => {
     const mimeType = req.file.mimetype;
     const buffer = req.file.buffer;
     const fileSize = buffer.length;
-    
+
     console.log('File info (read):', {
       mimetype: mimeType,
       size: fileSize,
@@ -487,19 +532,19 @@ router.post('/read', (req, res, next) => {
       });
     } catch (jimpError) {
       console.error('Jimp read error (read):', jimpError);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'ไม่สามารถอ่านไฟล์รูปภาพได้',
         details: jimpError.message || 'กรุณาตรวจสอบว่าไฟล์เป็นรูปภาพที่ถูกต้อง (JPG, PNG, GIF, WebP)'
       });
     }
-    
+
     // แปลงเป็น RGBA format และปรับขนาดถ้าจำเป็น
     const maxWidth = 1200;
     if (image.bitmap.width > maxWidth) {
       // สำหรับ Jimp 1.6.0 ต้องใช้ object แทน number
       // คำนวณ height ใหม่ตามอัตราส่วน
       const newHeight = Math.round((image.bitmap.height * maxWidth) / image.bitmap.width);
-      
+
       // ลองใช้ object format ก่อน
       try {
         image = image.resize({ width: maxWidth, height: newHeight });
@@ -526,7 +571,7 @@ router.post('/read', (req, res, next) => {
     const width = image.bitmap.width;
     const height = image.bitmap.height;
     const luminanceData = new Uint8ClampedArray(width * height);
-    
+
     for (let i = 0; i < image.bitmap.data.length; i += 4) {
       const r = image.bitmap.data[i];
       const g = image.bitmap.data[i + 1];
@@ -555,7 +600,7 @@ router.post('/read', (req, res, next) => {
     // อ่านบาร์โค้ดด้วย ZXing
     const reader = new MultiFormatReader();
     reader.setHints(hints);
-    
+
     let barcode = null;
     try {
       const result = reader.decode(binaryBitmap);
@@ -564,7 +609,7 @@ router.post('/read', (req, res, next) => {
       // ลองปรับรูปภาพอีกครั้ง
       try {
         image = image.contrast(0.5).brightness(0.1);
-        
+
         const newLuminanceData = new Uint8ClampedArray(width * height);
         for (let i = 0; i < image.bitmap.data.length; i += 4) {
           const r = image.bitmap.data[i];
@@ -573,14 +618,14 @@ router.post('/read', (req, res, next) => {
           const luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
           newLuminanceData[i / 4] = luminance;
         }
-        
+
         const newLuminanceSource = new RGBLuminanceSource(newLuminanceData, width, height);
         const newBinaryBitmap = new BinaryBitmap(new HybridBinarizer(newLuminanceSource));
-        
+
         const result = reader.decode(newBinaryBitmap);
         barcode = result.getText();
       } catch (retryError) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'ไม่สามารถอ่านบาร์โค้ดจากรูปภาพได้',
           details: 'กรุณาตรวจสอบว่ารูปภาพมีบาร์โค้ดที่ชัดเจนและแสงสว่างเพียงพอ'
         });
@@ -588,8 +633,8 @@ router.post('/read', (req, res, next) => {
     }
 
     if (!barcode) {
-      return res.status(400).json({ 
-        error: 'ไม่พบบาร์โค้ดในรูปภาพ' 
+      return res.status(400).json({
+        error: 'ไม่พบบาร์โค้ดในรูปภาพ'
       });
     }
 
@@ -600,9 +645,9 @@ router.post('/read', (req, res, next) => {
 
   } catch (error) {
     console.error('Error reading barcode:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'เกิดข้อผิดพลาดในการอ่านบาร์โค้ด',
-      details: error.message 
+      details: error.message
     });
   }
 });

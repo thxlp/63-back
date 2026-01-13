@@ -2,6 +2,23 @@ const express = require('express');
 const { supabaseAdmin } = require('../config/supabase');
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: การจัดการข้อมูลผู้ใช้งาน
+ */
+
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: ดึงข้อมูลผู้ใช้งานทั้งหมด
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: รายชื่อผู้ใช้งานทั้งหมด
+ */
 // Get all users
 router.get('/', async (req, res) => {
   try {
@@ -19,6 +36,25 @@ router.get('/', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/users/profile:
+ *   get:
+ *     summary: ดึงข้อมูล Profile และ BMI (POST method preference)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: ข้อมูล Profile และ BMI
+ *       400:
+ *         description: ไม่พบ user_id
+ */
 // Get user profile with BMI data
 router.get('/profile', async (req, res) => {
   try {
@@ -32,7 +68,7 @@ router.get('/profile', async (req, res) => {
 
     if (!user_id) {
       console.log('[USERS /profile] Missing user_id');
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'กรุณาระบุ user_id ใน query parameter',
         example: '/api/users/profile?user_id=your-user-id'
@@ -55,7 +91,7 @@ router.get('/profile', async (req, res) => {
 
     // Format response - Format 1: ส่งข้อมูลโดยตรง (ตรงตามข้อกำหนด)
     const latestBmi = bmiRecords && bmiRecords.length > 0 ? bmiRecords[0] : null;
-    
+
     // Format 1: ส่งข้อมูลโดยตรง (ตรงตามข้อกำหนด)
     // เพิ่ม user_id และ id เพื่อให้ frontend เข้าถึงได้ง่าย
     const response = {
@@ -79,9 +115,9 @@ router.get('/profile', async (req, res) => {
     res.status(200).json(response);
   } catch (error) {
     console.error('Error in /user/profile:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -92,9 +128,9 @@ router.post('/profile', async (req, res) => {
     const { user_id } = req.body;
 
     if (!user_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'กรุณาระบุ user_id' 
+        error: 'กรุณาระบุ user_id'
       });
     }
 
@@ -139,13 +175,32 @@ router.post('/profile', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error in POST /user/profile:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
 
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   get:
+ *     summary: ดึงข้อมูลผู้ใช้งานตาม ID
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: ข้อมูลผู้ใช้งาน
+ *       404:
+ *         description: ไม่พบผู้ใช้งาน
+ */
 // Get user by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -167,6 +222,35 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/users:
+ *   post:
+ *     summary: สร้างผู้ใช้งานใหม่ (Admin/Internal)
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *               - email
+ *             properties:
+ *               id:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               full_name:
+ *                 type: string
+ *               avatar_url:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: สร้างผู้ใช้งานสำเร็จ
+ */
 // Create user profile
 router.post('/', async (req, res) => {
   try {
@@ -196,6 +280,33 @@ router.post('/', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   put:
+ *     summary: อัปเดตข้อมูลผู้ใช้งาน
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               full_name:
+ *                 type: string
+ *               avatar_url:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: อัปเดตสำเร็จ
+ */
 // Update user
 router.put('/:id', async (req, res) => {
   try {
@@ -218,6 +329,22 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   delete:
+ *     summary: ลบผู้ใช้งาน
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ลบสำเร็จ
+ */
 // Delete user
 router.delete('/:id', async (req, res) => {
   try {

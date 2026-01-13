@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const basicAuth = require('express-basic-auth');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -22,9 +25,9 @@ app.use((req, res, next) => {
 
 // เพิ่มขนาด limit สำหรับ request entity (50MB)
 // ใช้ express.json() เฉพาะกับ content-type ที่เป็น JSON เท่านั้น (ไม่รวม multipart/form-data)
-app.use(express.json({ 
+app.use(express.json({
   type: ['application/json', 'text/json'],
-  limit: '50mb' 
+  limit: '50mb'
 }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -41,6 +44,20 @@ try {
   const cartRoutes = require('./routes/cart');
   const recipesRoutes = require('./routes/recipes');
   console.log('✅ All routes loaded successfully');
+
+  // Swagger Documentation
+  app.use(
+    '/api-docs',
+    basicAuth({
+      users: {
+        'sut': 'b6701970' // อยากเปลี่ยนรหัส แก้ตรงนี้
+      },
+      challenge: true
+    }),
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec)
+  );
+  console.log('✅ Swagger UI available at /api-docs');
 
   // API Routes (ต้องอยู่ก่อน static files)
   app.use('/api/auth', authRoutes);
@@ -61,7 +78,7 @@ try {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'Server is running',
     port: PORT,
     services: {
@@ -84,47 +101,47 @@ app.use(express.static('public'));
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   console.error('Stack:', err.stack);
-  
+
   // จัดการ multer errors
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: 'ไฟล์มีขนาดใหญ่เกินไป',
       details: 'ขนาดไฟล์สูงสุดที่อนุญาต: 50MB'
     });
   }
-  
+
   if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: 'อัปโหลดไฟล์ไม่ถูกต้อง',
       details: 'กรุณาตรวจสอบชื่อ field ที่ใช้ในการอัปโหลด'
     });
   }
-  
+
   // จัดการ multer file filter errors
   if (err.message?.includes('กรุณาอัปโหลดไฟล์รูปภาพเท่านั้น')) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: 'รูปแบบไฟล์ไม่ถูกต้อง',
       details: err.message
     });
   }
-  
+
   // จัดการ request entity too large
   if (err.type === 'entity.too.large' || err.message?.includes('entity too large')) {
-    return res.status(413).json({ 
+    return res.status(413).json({
       error: 'ไฟล์มีขนาดใหญ่เกินไป',
       details: 'ขนาดไฟล์สูงสุดที่อนุญาต: 50MB'
     });
   }
-  
+
   // จัดการ multer errors อื่นๆ
   if (err.name === 'MulterError') {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์',
       details: err.message
     });
   }
-  
-  res.status(500).json({ 
+
+  res.status(500).json({
     error: err.message || 'Internal Server Error',
     details: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
@@ -133,7 +150,7 @@ app.use((err, req, res, next) => {
 // 404 handler
 app.use((req, res) => {
   console.log(`[404] Route not found: ${req.method} ${req.path}`);
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Route not found',
     method: req.method,
     path: req.path,
@@ -176,7 +193,7 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0' , () => {
+app.listen(PORT, () => {
   console.log(`========================================`);
   console.log(`🚀 Server Running`);
   console.log(`   Running on http://localhost:${PORT}`);
@@ -186,7 +203,7 @@ app.listen(PORT, '0.0.0.0' , () => {
   console.log(`   - /api/data (Data Operations)`);
   console.log(`   - /api/openfoodfacts (OpenFoodFacts API)`);
   console.log(`   - /api/barcode (Barcode Scanning)`);
-    console.log(`   - /api/transactions (Transaction History)`);
+  console.log(`   - /api/transactions (Transaction History)`);
   console.log(`   - /example.html (OpenFoodFacts Example)`);
   console.log(`   - /barcode-scanner.html (Barcode Scanner)`);
   console.log(`========================================`);

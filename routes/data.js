@@ -4,6 +4,45 @@ const { logTransaction } = require('../utils/transactionLogger');
 const { normalizeUserId, checkUserExists } = require('../utils/userHelper');
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Data
+ *   description: การจัดการข้อมูลทั่วไปและ Calorie Logs
+ */
+
+/**
+ * @swagger
+ * /api/data/calorie_logs:
+ *   post:
+ *     summary: บันทึกข้อมูลแคลอรี่รายวัน
+ *     tags: [Data]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user_id
+ *               - date
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 example: 2024-01-15
+ *               total_calories:
+ *                 type: number
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: บันทึกสำเร็จ
+ */
 // Helper function สำหรับบันทึกข้อมูลแคลอรี่ (ใช้ร่วมกันได้)
 async function handleCalorieLog(req, res) {
   try {
@@ -53,10 +92,10 @@ async function handleCalorieLog(req, res) {
 
     // Normalize user_id (รองรับทั้ง UUID และ integer)
     const { normalizedId } = normalizeUserId(user_id);
-    
+
     // ตรวจสอบว่า user_id มีอยู่จริง
     const userCheck = await checkUserExists(normalizedId);
-    
+
     if (!userCheck.exists) {
       return res.status(400).json({
         success: false,
@@ -121,7 +160,7 @@ async function handleCalorieLog(req, res) {
 
       if (error) {
         console.error('[DATA /calorie_logs] Insert error:', error);
-        
+
         // ถ้าเป็น unique constraint error แสดงว่ามี log อยู่แล้ว (race condition)
         if (error.code === '23505' || error.message.includes('unique')) {
           // ลอง update แทน (ใช้ normalizedId)
@@ -183,7 +222,7 @@ async function handleCalorieLog(req, res) {
       },
       status: 'completed',
       req: req
-    }).catch(err => 
+    }).catch(err =>
       console.error('[DATA /calorie_logs] Error logging transaction:', err)
     );
 

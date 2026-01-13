@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 8080;
 
 // CORS Configuration - รองรับ credentials และ headers ที่จำเป็น
 app.use(cors({
@@ -176,7 +176,7 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0' , () => {
   console.log(`========================================`);
   console.log(`🚀 Server Running`);
   console.log(`   Running on http://localhost:${PORT}`);

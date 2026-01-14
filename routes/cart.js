@@ -23,6 +23,50 @@ const router = express.Router();
  *   "total_calories": "500.5"
  * }
  */
+/**
+ * @swagger
+ * tags:
+ *   name: Cart
+ *   description: การจัดการตะกร้าสินค้า
+ */
+
+/**
+ * @swagger
+ * /api/cart/save:
+ *   post:
+ *     summary: บันทึกหรืออัปเดตตะกร้าสินค้า
+ *     tags: [Cart]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user_id
+ *               - items
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *               total_calories:
+ *                 type: number
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     quantity:
+ *                       type: integer
+ *                     calories:
+ *                       type: number
+ *     responses:
+ *       200:
+ *         description: บันทึกสำเร็จ
+ */
 router.post('/save', async (req, res) => {
   try {
     const {
@@ -56,10 +100,10 @@ router.post('/save', async (req, res) => {
 
     // Normalize user_id (รองรับทั้ง UUID และ integer)
     const { normalizedId } = normalizeUserId(user_id);
-    
+
     // ตรวจสอบว่า user_id มีอยู่จริง
     const userCheck = await checkUserExists(normalizedId);
-    
+
     if (!userCheck.exists) {
       return res.status(400).json({
         success: false,
@@ -126,7 +170,7 @@ router.post('/save', async (req, res) => {
       },
       status: 'completed',
       req: req
-    }).catch(err => 
+    }).catch(err =>
       console.error('[CART /save] Error logging transaction:', err)
     );
 
@@ -156,9 +200,9 @@ router.post('/save', async (req, res) => {
  */
 router.get('/history', async (req, res) => {
   try {
-    let { 
-      user_id, 
-      limit = 20, 
+    let {
+      user_id,
+      limit = 20,
       offset = 0,
       status = 'active'
     } = req.query;
@@ -172,13 +216,13 @@ router.get('/history', async (req, res) => {
 
     // URL decode user_id
     user_id = decodeUserId(user_id);
-    
+
     // Normalize user_id (รองรับทั้ง UUID และ integer)
     const { normalizedId } = normalizeUserId(user_id);
-    
+
     // ตรวจสอบว่า user_id มีอยู่จริง
     const userCheck = await checkUserExists(normalizedId);
-    
+
     if (!userCheck.exists) {
       return res.status(400).json({
         success: false,
@@ -250,13 +294,13 @@ router.get('/latest', async (req, res) => {
 
     // URL decode user_id
     user_id = decodeUserId(user_id);
-    
+
     // Normalize user_id (รองรับทั้ง UUID และ integer)
     const { normalizedId } = normalizeUserId(user_id);
-    
+
     // ตรวจสอบว่า user_id มีอยู่จริง
     const userCheck = await checkUserExists(normalizedId);
-    
+
     if (!userCheck.exists) {
       return res.status(400).json({
         success: false,
@@ -324,7 +368,7 @@ router.delete('/:id', async (req, res) => {
 
     // Normalize user_id
     const { normalizedId } = normalizeUserId(user_id);
-    
+
     // ตรวจสอบว่า cart นี้เป็นของ user นี้จริงๆ
     const { data: cartData, error: fetchError } = await supabaseAdmin
       .from('cart_history')

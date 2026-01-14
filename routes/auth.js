@@ -3,12 +3,7 @@ const { supabaseClient, supabaseAdmin } = require('../config/supabase');
 const { logBMIRecord, logSignUp, logSignIn } = require('../utils/transactionLogger');
 const router = express.Router();
 
-/**
- * @swagger
- * tags:
- *   name: Auth
- *   description: Authentication and User Management
- */
+
 
 // Helper function to calculate BMI
 function calculateBMI(weight, height) {
@@ -27,28 +22,7 @@ function getBMICategory(bmi) {
   return 'obese';
 }
 
-// Get BMI data by user_id (GET method)
-/**
- * @swagger
- * /api/auth/signup:
- *   get:
- *     summary: Get user BMI data by user_id
- *     tags: [Auth]
- *     parameters:
- *       - in: query
- *         name: user_id
- *         schema:
- *           type: string
- *         required: true
- *         description: User ID to fetch BMI data for
- *     responses:
- *       200:
- *         description: User BMI data retrieved successfully
- *       400:
- *         description: Missing user_id
- *       500:
- *         description: Server error
- */
+
 router.get('/signup', async (req, res) => {
   try {
     const { user_id } = req.query;
@@ -114,19 +88,7 @@ router.get('/signup', async (req, res) => {
   }
 });
 
-// Check bmi_records table status
-/**
- * @swagger
- * /api/auth/check-table:
- *   get:
- *     summary: Check if BMI table exists (Admin Utility)
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Table status
- *       500:
- *         description: Server error
- */
+
 router.get('/check-table', async (req, res) => {
   try {
     console.log('[AUTH /check-table] Checking bmi_records table...');
@@ -174,44 +136,7 @@ router.get('/check-table', async (req, res) => {
   }
 });
 
-// Sign Up with BMI registration and Get BMI data
-// สามารถใช้สำหรับ signup หรือดึงข้อมูล BMI ของ user ที่มีอยู่แล้ว
-/**
- * @swagger
- * /api/auth/signup:
- *   post:
- *     summary: Register a new user with BMI data
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - weight
- *               - height
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               weight:
- *                 type: number
- *               height:
- *                 type: number
- *               calories:
- *                 type: number
- *     responses:
- *       201:
- *         description: User created successfully
- *       400:
- *         description: Invalid input or missing fields
- *       500:
- *         description: Server error
- */
+
 router.post('/signup', async (req, res) => {
   try {
     console.log('[AUTH /signup] Signup request:', {
@@ -608,51 +533,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// Sign In with BMI data
-/**
- * @swagger
- * /api/auth/signin:
- *   post:
- *     summary: Sign in user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 session:
- *                   type: object
- *                   properties:
- *                     access_token:
- *                       type: string
- *                     refresh_token:
- *                       type: string
- *       400:
- *         description: Invalid credentials
- *       500:
- *         description: Server error
- */
+
 router.post('/signin', async (req, res) => {
   try {
     // Debug: log request body และ headers
@@ -941,21 +822,7 @@ router.post('/signin', async (req, res) => {
   }
 });
 
-// Sign Out
-/**
- * @swagger
- * /api/auth/signout:
- *   post:
- *     summary: Sign out user
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Sign out successful
- *       400:
- *         description: Sign out failed
- *       500:
- *         description: Server error
- */
+
 router.post('/signout', async (req, res) => {
   try {
     const { error } = await supabaseClient.auth.signOut();
@@ -970,30 +837,7 @@ router.post('/signout', async (req, res) => {
   }
 });
 
-// Get User Profile - รองรับ Bearer Token หรือ user_id (GET method)
-// Format 1: ส่งข้อมูลโดยตรง (แนะนำ)
-/**
- * @swagger
- * /api/auth/profile:
- *   get:
- *     summary: Get user profile and BMI (Support Bearer Token or Query Param)
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: user_id
- *         schema:
- *           type: string
- *         description: Optional user_id if not using Bearer Token
- *     responses:
- *       200:
- *         description: User profile data
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
+
 router.get('/profile', async (req, res) => {
   try {
     let userId = null;
@@ -1118,33 +962,7 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-// Get User Profile by user_id (POST method)
-// Format 1: ส่งข้อมูลโดยตรง (ตรงตามข้อกำหนด)
-/**
- * @swagger
- * /api/auth/profile:
- *   post:
- *     summary: Get user profile by user_id (POST method)
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - user_id
- *             properties:
- *               user_id:
- *                 type: string
- *     responses:
- *       200:
- *         description: User profile data
- *       400:
- *         description: Missing user_id
- *       500:
- *         description: Server error
- */
+
 router.post('/profile', async (req, res) => {
   try {
     let userId = req.body?.user_id || req.query?.user_id;
@@ -1226,24 +1044,7 @@ router.post('/profile', async (req, res) => {
   }
 });
 
-// Get Current User with BMI data (requires Bearer token)
-// Format 1: ส่งข้อมูลโดยตรง (แนะนำ)
-/**
- * @swagger
- * /api/auth/me:
- *   get:
- *     summary: Get current authenticated user profile
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Current user profile
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
+
 router.get('/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -1318,31 +1119,7 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// Get User Profile - Alternative endpoint (GET /api/auth/user)
-// Format 1: ส่งข้อมูลโดยตรง - ใช้ logic เดียวกับ /profile
-// รองรับ Bearer Token หรือ user_id
-/**
- * @swagger
- * /api/auth/user:
- *   get:
- *     summary: Get user data (Alternative to /profile)
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: user_id
- *         schema:
- *           type: string
- *         description: Optional user_id
- *     responses:
- *       200:
- *         description: User data
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
+
 router.get('/user', async (req, res) => {
   try {
     let userId = null;
@@ -1458,26 +1235,6 @@ router.get('/user', async (req, res) => {
   }
 });
 
-// Get user data by user_id (alternative endpoint)
-/**
- * @swagger
- * /api/auth/user/{userId}:
- *   get:
- *     summary: Get user data by ID path parameter
- *     tags: [Auth]
- *     parameters:
- *       - in: path
- *         name: userId
- *         schema:
- *           type: string
- *         required: true
- *         description: User ID
- *     responses:
- *       200:
- *         description: User data
- *       500:
- *         description: Server error
- */
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -1517,36 +1274,7 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-// Get user BMI data by user_id
-/**
- * @swagger
- * /api/auth/bmi:
- *   post:
- *     summary: Fetch BMI records
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - user_id
- *             properties:
- *               user_id:
- *                 type: string
- *               action:
- *                 type: string
- *                 enum: [get_all, get_latest]
- *                 default: get_all
- *     responses:
- *       200:
- *         description: BMI records
- *       400:
- *         description: Error
- *       500:
- *         description: Server error
- */
+
 router.post('/bmi', async (req, res) => {
   try {
     const { user_id, action = 'get_all' } = req.body;

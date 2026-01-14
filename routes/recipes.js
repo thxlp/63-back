@@ -21,18 +21,48 @@ const axiosConfig = {
  * หรือ
  * GET /api/recipes/search?query=cake&number=20
  */
+/**
+ * @swagger
+ * tags:
+ *   name: Recipes
+ *   description: ค้นหาและดูข้อมูลสูตรอาหาร (Spoonacular)
+ */
+
+/**
+ * @swagger
+ * /api/recipes/search:
+ *   get:
+ *     summary: ค้นหาสูตรอาหาร
+ *     tags: [Recipes]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: คำค้นหา (เช่น chicken, salad)
+ *       - in: query
+ *         name: number
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: จำนวนผลลัพธ์
+ *     responses:
+ *       200:
+ *         description: พบข้อมูลสูตรอาหาร
+ */
 router.get('/search', async (req, res) => {
   try {
     // รองรับทั้ง q และ query parameter
     const query = req.query.q || req.query.query || '';
     const { number = 20, offset = 0, user_id = null } = req.query;
 
-    console.log('[RECIPES /search] Request:', { 
-      q: req.query.q, 
+    console.log('[RECIPES /search] Request:', {
+      q: req.query.q,
       query: req.query.query,
       finalQuery: query,
-      number, 
-      offset 
+      number,
+      offset
     });
 
     if (!query || query.trim() === '') {
@@ -109,7 +139,7 @@ router.get('/search', async (req, res) => {
     // Handle 402 Payment Required
     if (error.response && error.response.status === 402) {
       console.error('[RECIPES /search] 💳 402 Payment Required');
-      
+
       // บันทึกประวัติการทำรายการที่ล้มเหลว
       const userId = req.query?.user_id || null;
       if (userId) {
@@ -129,7 +159,7 @@ router.get('/search', async (req, res) => {
           console.error('[RECIPES /search] Error logging failed transaction:', err)
         );
       }
-      
+
       return res.status(402).json({
         success: false,
         error: 'Spoonacular API ต้องการการชำระเงิน',
@@ -179,7 +209,7 @@ router.get('/search', async (req, res) => {
 
     // Generic error
     const statusCode = error.response?.status || 500;
-    
+
     if (statusCode >= 400 && statusCode < 500) {
       return res.status(statusCode).json({
         success: false,
@@ -201,6 +231,23 @@ router.get('/search', async (req, res) => {
 /**
  * ดึงข้อมูลโภชนาการของสูตรอาหาร
  * GET /api/recipes/:id/nutrition
+ */
+/**
+ * @swagger
+ * /api/recipes/{id}/nutrition:
+ *   get:
+ *     summary: ดูข้อมูลโภชนาการของสูตรอาหาร
+ *     tags: [Recipes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Recipe ID
+ *     responses:
+ *       200:
+ *         description: ข้อมูลโภชนาการ
  */
 router.get('/:id/nutrition', async (req, res) => {
   try {
@@ -281,6 +328,23 @@ router.get('/:id/nutrition', async (req, res) => {
  * ดึงข้อมูลสูตรอาหาร
  * GET /api/recipes/:id/information
  */
+/**
+ * @swagger
+ * /api/recipes/{id}/information:
+ *   get:
+ *     summary: ดึงข้อมูลรายละเอียดสูตรอาหาร
+ *     tags: [Recipes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Recipe ID
+ *     responses:
+ *       200:
+ *         description: รายละเอียดสูตรอาหาร
+ */
 router.get('/:id/information', async (req, res) => {
   try {
     const { id } = req.params;
@@ -359,6 +423,23 @@ router.get('/:id/information', async (req, res) => {
 /**
  * ดึงรายละเอียดสูตรอาหาร (alias สำหรับ backward compatibility)
  * GET /api/recipes/:id
+ */
+/**
+ * @swagger
+ * /api/recipes/{id}:
+ *   get:
+ *     summary: ดึงข้อมูลสูตรอาหาร (Alias)
+ *     tags: [Recipes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Recipe ID
+ *     responses:
+ *       200:
+ *         description: รายละเอียดสูตรอาหาร
  */
 router.get('/:id', async (req, res) => {
   try {

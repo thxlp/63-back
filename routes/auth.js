@@ -3,6 +3,13 @@ const { supabaseClient, supabaseAdmin } = require('../config/supabase');
 const { logBMIRecord, logSignUp, logSignIn } = require('../utils/transactionLogger');
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication and User Management
+ */
+
 // Helper function to calculate BMI
 function calculateBMI(weight, height) {
   // height should be in meters, weight in kg
@@ -21,12 +28,33 @@ function getBMICategory(bmi) {
 }
 
 // Get BMI data by user_id (GET method)
+/**
+ * @swagger
+ * /api/auth/signup:
+ *   get:
+ *     summary: Get user BMI data by user_id
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID to fetch BMI data for
+ *     responses:
+ *       200:
+ *         description: User BMI data retrieved successfully
+ *       400:
+ *         description: Missing user_id
+ *       500:
+ *         description: Server error
+ */
 router.get('/signup', async (req, res) => {
   try {
     const { user_id } = req.query;
 
     if (!user_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'กรุณาระบุ user_id ใน query parameter',
         example: '/api/auth/signup?user_id=your-user-id'
@@ -79,23 +107,35 @@ router.get('/signup', async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting BMI:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
 
 // Check bmi_records table status
+/**
+ * @swagger
+ * /api/auth/check-table:
+ *   get:
+ *     summary: Check if BMI table exists (Admin Utility)
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Table status
+ *       500:
+ *         description: Server error
+ */
 router.get('/check-table', async (req, res) => {
   try {
     console.log('[AUTH /check-table] Checking bmi_records table...');
-    
+
     // ลอง query table เพื่อดูว่ามีอยู่หรือไม่
     const { data, error } = await supabaseAdmin
       .from('bmi_records')
       .select('count', { count: 'exact', head: true });
-    
+
     if (error) {
       console.error('[AUTH /check-table] ❌ Table error:', error);
       return res.status(500).json({
@@ -107,15 +147,15 @@ router.get('/check-table', async (req, res) => {
         hint: error.hint
       });
     }
-    
+
     console.log('[AUTH /check-table] ✅ Table exists');
-    
+
     // ลอง query ข้อมูลจริง
     const { data: records, error: recordsError } = await supabaseAdmin
       .from('bmi_records')
       .select('*')
       .limit(1);
-    
+
     return res.json({
       success: true,
       table_exists: true,
@@ -136,6 +176,42 @@ router.get('/check-table', async (req, res) => {
 
 // Sign Up with BMI registration and Get BMI data
 // สามารถใช้สำหรับ signup หรือดึงข้อมูล BMI ของ user ที่มีอยู่แล้ว
+/**
+ * @swagger
+ * /api/auth/signup:
+ *   post:
+ *     summary: Register a new user with BMI data
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - weight
+ *               - height
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               weight:
+ *                 type: number
+ *               height:
+ *                 type: number
+ *               calories:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Invalid input or missing fields
+ *       500:
+ *         description: Server error
+ */
 router.post('/signup', async (req, res) => {
   try {
     console.log('[AUTH /signup] Signup request:', {
@@ -145,7 +221,7 @@ router.post('/signup', async (req, res) => {
       hasHeight: !!req.body.height,
       hasCalories: !!req.body.calories
     });
-    
+
     const { email, password, weight, height, calories, user_id, action } = req.body;
 
     // ถ้ามี user_id และ action = 'get' หรือ 'get_bmi' → ดึงข้อมูล BMI
@@ -157,9 +233,9 @@ router.post('/signup', async (req, res) => {
         .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
       if (bmiError) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: bmiError.message 
+          error: bmiError.message
         });
       }
 
@@ -176,9 +252,9 @@ router.post('/signup', async (req, res) => {
 
     // Validate required fields for signup
     if (!email || !password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'Email and password are required' 
+        error: 'Email and password are required'
       });
     }
 
@@ -189,24 +265,24 @@ router.post('/signup', async (req, res) => {
     });
 
     if (error) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: error.message 
+        error: error.message
       });
     }
 
     // If BMI data is provided, register it
     if (data.user && (weight || height)) {
       console.log('[AUTH /signup] BMI data provided:', { weight, height, calories });
-      
+
       // Validate BMI required fields
       if (!weight || !height) {
         console.log('[AUTH /signup] Missing weight or height');
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: 'กรุณากรอกข้อมูล weight และ height ให้ครบถ้วน',
-      user: data.user
-    });
+          user: data.user
+        });
       }
 
       // Validate data types
@@ -215,17 +291,17 @@ router.post('/signup', async (req, res) => {
 
       if (isNaN(weightNum) || weightNum <= 0) {
         console.log('[AUTH /signup] Invalid weight:', weight);
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: 'น้ำหนักต้องเป็นตัวเลขที่มากกว่า 0' 
+          error: 'น้ำหนักต้องเป็นตัวเลขที่มากกว่า 0'
         });
       }
 
       if (isNaN(heightNum) || heightNum <= 0) {
         console.log('[AUTH /signup] Invalid height:', height);
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: 'ส่วนสูงต้องเป็นตัวเลขที่มากกว่า 0' 
+          error: 'ส่วนสูงต้องเป็นตัวเลขที่มากกว่า 0'
         });
       }
 
@@ -235,9 +311,9 @@ router.post('/signup', async (req, res) => {
         caloriesNum = parseFloat(calories);
         if (isNaN(caloriesNum) || caloriesNum < 0) {
           console.log('[AUTH /signup] Invalid calories:', calories);
-          return res.status(400).json({ 
+          return res.status(400).json({
             success: false,
-            error: 'แคลอรี่ต้องเป็นตัวเลขที่มากกว่าหรือเท่ากับ 0' 
+            error: 'แคลอรี่ต้องเป็นตัวเลขที่มากกว่าหรือเท่ากับ 0'
           });
         }
       }
@@ -245,7 +321,7 @@ router.post('/signup', async (req, res) => {
       // Calculate BMI
       const bmi = calculateBMI(weightNum, heightNum);
       const category = getBMICategory(bmi);
-      
+
       console.log('[AUTH /signup] Calculated BMI:', { bmi, category });
 
       // Prepare BMI data for insertion
@@ -280,18 +356,18 @@ router.post('/signup', async (req, res) => {
       // ใช้ supabaseAdmin (service role key) เพื่อ bypass RLS
       console.log('[AUTH /signup] Attempting to insert BMI data:', JSON.stringify(bmiData, null, 2));
       console.log('[AUTH /signup] Using service role key:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-      
+
       // ตรวจสอบว่า table มีอยู่จริงก่อน insert
       const { data: tableCheck, error: tableCheckError } = await supabaseAdmin
         .from('bmi_records')
         .select('id')
         .limit(1);
-      
+
       if (tableCheckError) {
         console.error('[AUTH /signup] ❌ Cannot access bmi_records table:', tableCheckError);
         console.error('[AUTH /signup] Error Code:', tableCheckError.code);
         console.error('[AUTH /signup] Error Message:', tableCheckError.message);
-        
+
         if (tableCheckError.code === 'PGRST205') {
           return res.status(500).json({
             success: false,
@@ -303,7 +379,7 @@ router.post('/signup', async (req, res) => {
       } else {
         console.log('[AUTH /signup] ✅ Table bmi_records is accessible');
       }
-      
+
       const { data: bmiRecord, error: bmiError } = await supabaseAdmin
         .from('bmi_records')
         .insert([bmiData])
@@ -315,13 +391,13 @@ router.post('/signup', async (req, res) => {
         console.error('[AUTH /signup] Error Message:', bmiError.message);
         console.error('[AUTH /signup] Error Details:', bmiError.details);
         console.error('[AUTH /signup] Error Hint:', bmiError.hint);
-        
+
         // ลองตรวจสอบ table ก่อน
         const { data: tableCheck, error: tableError } = await supabaseAdmin
           .from('bmi_records')
           .select('id')
           .limit(1);
-        
+
         if (tableError) {
           console.error('[AUTH /signup] ❌ Table access error:', tableError);
           return res.status(500).json({
@@ -333,7 +409,7 @@ router.post('/signup', async (req, res) => {
             suggestion: 'กรุณาตรวจสอบว่า table bmi_records มีอยู่และสามารถเข้าถึงได้'
           });
         }
-        
+
         // Return user data even if BMI registration fails
         return res.status(201).json({
           success: true,
@@ -367,7 +443,7 @@ router.post('/signup', async (req, res) => {
         .select('*')
         .eq('user_id', data.user.id)
         .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
-      
+
       if (fetchBmiError) {
         console.error('[AUTH /signup] Error fetching BMI records:', fetchBmiError);
       } else {
@@ -421,11 +497,11 @@ router.post('/signup', async (req, res) => {
       };
 
       console.log('[AUTH /signup] ✅ Sending response with user_id:', data.user.id);
-      
+
       // บันทึกประวัติการทำรายการ
       await logSignUp(data.user.id, req);
       await logBMIRecord(data.user.id, latestBmi, req);
-      
+
       return res.status(201).json(response);
     }
 
@@ -482,8 +558,8 @@ router.post('/signup', async (req, res) => {
         }
       };
 
-    // บันทึกประวัติการทำรายการ (ไม่รอผลลัพธ์เพื่อไม่ให้ชะลอ response)
-    logSignUp(data.user.id, req).catch(err => console.error('[AUTH /signup] Error logging signup:', err));
+      // บันทึกประวัติการทำรายการ (ไม่รอผลลัพธ์เพื่อไม่ให้ชะลอ response)
+      logSignUp(data.user.id, req).catch(err => console.error('[AUTH /signup] Error logging signup:', err));
 
       return res.status(201).json(response);
     }
@@ -533,6 +609,50 @@ router.post('/signup', async (req, res) => {
 });
 
 // Sign In with BMI data
+/**
+ * @swagger
+ * /api/auth/signin:
+ *   post:
+ *     summary: Sign in user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 session:
+ *                   type: object
+ *                   properties:
+ *                     access_token:
+ *                       type: string
+ *                     refresh_token:
+ *                       type: string
+ *       400:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Server error
+ */
 router.post('/signin', async (req, res) => {
   try {
     // Debug: log request body และ headers
@@ -552,8 +672,8 @@ router.post('/signin', async (req, res) => {
       console.log('[AUTH /signin] Missing fields - email:', !!emailValue, 'password:', !!passwordValue);
       console.log('[AUTH /signin] Received body:', req.body);
       console.log('[AUTH /signin] Received body keys:', Object.keys(req.body || {}));
-      
-      return res.status(400).json({ 
+
+      return res.status(400).json({
         success: false,
         error: 'Email และ Password จำเป็นต้องมี',
         error_en: 'Email and password are required',
@@ -580,9 +700,9 @@ router.post('/signin', async (req, res) => {
     // Normalize email และ password
     const normalizedEmail = emailValue.toLowerCase();
     const normalizedPassword = passwordValue;
-    
+
     console.log('[AUTH /signin] Attempting login for:', normalizedEmail);
-    
+
     // ลองใช้ supabaseClient ก่อน (ปกติ)
     let { data, error } = await supabaseClient.auth.signInWithPassword({
       email: normalizedEmail,
@@ -593,28 +713,28 @@ router.post('/signin', async (req, res) => {
     if (error) {
       console.log('[AUTH /signin] Initial signin error:', error.message);
       console.log('[AUTH /signin] Error code:', error.status);
-      
+
       // ถ้าเป็น email not confirmed หรือ invalid credentials ให้ลอง bypass
-      if (error.message && (error.message.includes('Email not confirmed') || 
-                           error.message.includes('Invalid login credentials') ||
-                           error.message.includes('invalid_credentials'))) {
-        
+      if (error.message && (error.message.includes('Email not confirmed') ||
+        error.message.includes('Invalid login credentials') ||
+        error.message.includes('invalid_credentials'))) {
+
         // ตรวจสอบว่า user มีอยู่ใน database หรือไม่
         try {
           console.log('[AUTH /signin] Checking user in database...');
           const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-          
+
           if (listError) {
             console.error('[AUTH /signin] Error listing users:', listError);
           } else {
-            const existingUser = authUsers?.users?.find(u => 
+            const existingUser = authUsers?.users?.find(u =>
               u.email?.toLowerCase() === normalizedEmail
             );
-            
+
             if (existingUser) {
               console.log('[AUTH /signin] User found in database:', existingUser.id, existingUser.email);
               console.log('[AUTH /signin] Email confirmed:', !!existingUser.email_confirmed_at);
-              
+
               // ถ้า email ยังไม่ confirm ให้ bypass confirmation
               if (!existingUser.email_confirmed_at) {
                 console.log('[AUTH /signin] Email not confirmed, attempting to update user...');
@@ -628,14 +748,14 @@ router.post('/signin', async (req, res) => {
                   console.error('[AUTH /signin] Failed to confirm email:', updateError);
                 }
               }
-              
+
               // ลอง signin ด้วย admin client
               console.log('[AUTH /signin] Attempting signin with admin client...');
               const signInResult = await supabaseAdmin.auth.signInWithPassword({
                 email: normalizedEmail,
                 password: normalizedPassword
               });
-              
+
               if (!signInResult.error && signInResult.data) {
                 data = signInResult.data;
                 error = null;
@@ -655,11 +775,11 @@ router.post('/signin', async (req, res) => {
 
     if (error) {
       console.error('Signin error:', error);
-      
+
       // Handle specific errors
       let errorMessage = error.message;
       let errorCode = error.status || 400;
-      
+
       if (error.message.includes('Invalid login credentials')) {
         errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
       } else if (error.message.includes('Email not confirmed')) {
@@ -668,8 +788,8 @@ router.post('/signin', async (req, res) => {
       } else if (error.message.includes('User not found')) {
         errorMessage = 'ไม่พบผู้ใช้งานในระบบ';
       }
-      
-      return res.status(errorCode).json({ 
+
+      return res.status(errorCode).json({
         success: false,
         error: errorMessage,
         error_code: error.status,
@@ -679,7 +799,7 @@ router.post('/signin', async (req, res) => {
 
     // ตรวจสอบว่า user และ session มีอยู่จริง
     if (!data || !data.user || !data.session) {
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
         error: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ - ไม่ได้รับข้อมูล user หรือ session'
       });
@@ -694,7 +814,7 @@ router.post('/signin', async (req, res) => {
       .select('*')
       .eq('user_id', data.user.id)
       .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
-    
+
     if (bmiError) {
       console.error('[AUTH /signin] Error fetching BMI records:', bmiError);
       console.error('[AUTH /signin] BMI Error code:', bmiError.code);
@@ -717,7 +837,7 @@ router.post('/signin', async (req, res) => {
     const response = {
       success: true,
       message: 'Sign in successful',
-      
+
       // User data (top level - สำหรับ localStorage)
       // รวมข้อมูล weight, height, bmi, calories ใน user object เพื่อให้เข้าถึงง่าย
       user: {
@@ -736,7 +856,7 @@ router.post('/signin', async (req, res) => {
         created_at: data.user.created_at,
         updated_at: data.user.updated_at
       },
-      
+
       // สำหรับ backward compatibility - ให้เข้าถึงได้หลายแบบ
       data: {
         user: {
@@ -752,7 +872,7 @@ router.post('/signin', async (req, res) => {
           calories: latestBmi?.calories || null
         }
       },
-      
+
       // Profile data (top level - สำหรับเข้าถึงง่าย)
       profile: {
         weight: latestBmi?.weight || null,
@@ -761,7 +881,7 @@ router.post('/signin', async (req, res) => {
         category: latestBmi?.category || null,
         calories: latestBmi?.calories || null
       },
-      
+
       // Session data
       session: {
         access_token: data.session.access_token,
@@ -770,14 +890,14 @@ router.post('/signin', async (req, res) => {
         expires_in: data.session.expires_in,
         token_type: data.session.token_type
       },
-      
+
       // BMI history
       bmi_history: {
         latest: latestBmi,
         all: bmiRecords || [],
         count: bmiRecords?.length || 0
       },
-      
+
       // สำหรับ backward compatibility
       bmi: {
         latest: latestBmi,
@@ -792,17 +912,17 @@ router.post('/signin', async (req, res) => {
     response.bmi_value = latestBmi?.bmi || null;
     response.bmi_category = latestBmi?.category || null;
     response.calories = latestBmi?.calories || null;
-    
+
     // เพิ่ม user_id และ id ในระดับ top level (สำคัญสำหรับ frontend)
     // เพื่อให้ frontend สามารถเข้าถึงได้ง่าย: response.id หรือ response.user_id
     response.id = data.user.id;
     response.user_id = data.user.id;
-    
+
     // เพิ่ม user_id ใน user object (backward compatibility)
     if (response.user && !response.user.user_id) {
       response.user.user_id = data.user.id;
     }
-    
+
     // เพิ่ม user_id ใน data.user object (backward compatibility)
     if (response.data && response.data.user && !response.data.user.user_id) {
       response.data.user.user_id = data.user.id;
@@ -814,14 +934,28 @@ router.post('/signin', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error in signin:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
 
 // Sign Out
+/**
+ * @swagger
+ * /api/auth/signout:
+ *   post:
+ *     summary: Sign out user
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Sign out successful
+ *       400:
+ *         description: Sign out failed
+ *       500:
+ *         description: Server error
+ */
 router.post('/signout', async (req, res) => {
   try {
     const { error } = await supabaseClient.auth.signOut();
@@ -838,10 +972,32 @@ router.post('/signout', async (req, res) => {
 
 // Get User Profile - รองรับ Bearer Token หรือ user_id (GET method)
 // Format 1: ส่งข้อมูลโดยตรง (แนะนำ)
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   get:
+ *     summary: Get user profile and BMI (Support Bearer Token or Query Param)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: string
+ *         description: Optional user_id if not using Bearer Token
+ *     responses:
+ *       200:
+ *         description: User profile data
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 router.get('/profile', async (req, res) => {
   try {
     let userId = null;
-    
+
     // Option A: ตรวจสอบ Bearer Token (แนะนำ)
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -859,7 +1015,7 @@ router.get('/profile', async (req, res) => {
         console.log('[AUTH /profile] Token verification failed, trying user_id fallback');
       }
     }
-    
+
     // Option B: ใช้ user_id จาก query parameter (backward compatibility)
     if (!userId) {
       userId = req.query.user_id;
@@ -872,8 +1028,8 @@ router.get('/profile', async (req, res) => {
           console.log('[AUTH /profile] Headers:', req.headers.authorization ? 'Has Authorization header' : 'No Authorization header');
           console.log('[AUTH /profile] Query:', req.query);
           console.log('[AUTH /profile] Body:', req.body);
-          
-          return res.status(401).json({ 
+
+          return res.status(401).json({
             error: 'Unauthorized',
             message: 'กรุณาระบุ Bearer Token หรือ user_id ใน query parameter',
             hint: 'ตรวจสอบว่า token ถูกต้องหรือไม่',
@@ -916,7 +1072,7 @@ router.get('/profile', async (req, res) => {
 
     // Format response - Format 1: ส่งข้อมูลโดยตรง (แนะนำ)
     const latestBmi = bmiRecords && bmiRecords.length > 0 ? bmiRecords[0] : null;
-    
+
     // ดึง email จาก users table หรือ auth.users
     const email = userData?.email || authUser?.email || null;
     const username = userData?.email || authUser?.email || email || null;
@@ -946,15 +1102,15 @@ router.get('/profile', async (req, res) => {
 
     // ตั้งค่า Content-Type header เป็น application/json
     res.setHeader('Content-Type', 'application/json');
-    
+
     // ส่ง HTTP Status 200 OK
     res.status(200).json(response);
   } catch (error) {
     console.error('Error in GET /profile:', error);
     console.error('Error stack:', error.stack);
-    
+
     // ส่ง error response ที่เป็นมิตรกับ frontend
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal Server Error',
       message: 'เกิดข้อผิดพลาดจาก server',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -964,16 +1120,41 @@ router.get('/profile', async (req, res) => {
 
 // Get User Profile by user_id (POST method)
 // Format 1: ส่งข้อมูลโดยตรง (ตรงตามข้อกำหนด)
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   post:
+ *     summary: Get user profile by user_id (POST method)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user_id
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: User profile data
+ *       400:
+ *         description: Missing user_id
+ *       500:
+ *         description: Server error
+ */
 router.post('/profile', async (req, res) => {
   try {
     let userId = req.body?.user_id || req.query?.user_id;
-    
+
     // Log เพื่อ debug
     console.log('[AUTH POST /profile] Request body:', req.body);
     console.log('[AUTH POST /profile] Query:', req.query);
-    
+
     if (!userId) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Bad Request',
         message: 'กรุณาระบุ user_id'
       });
@@ -1037,7 +1218,7 @@ router.post('/profile', async (req, res) => {
   } catch (error) {
     console.error('Error in POST /profile:', error);
     console.error('Error stack:', error.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal Server Error',
       message: 'เกิดข้อผิดพลาดจาก server',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -1047,16 +1228,32 @@ router.post('/profile', async (req, res) => {
 
 // Get Current User with BMI data (requires Bearer token)
 // Format 1: ส่งข้อมูลโดยตรง (แนะนำ)
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current authenticated user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user profile
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 router.get('/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       // Log เพื่อ debug
       console.log('[AUTH /me] No authentication - missing Bearer token');
       console.log('[AUTH /me] Headers:', req.headers.authorization ? 'Has Authorization header' : 'No Authorization header');
-      
-      return res.status(401).json({ 
+
+      return res.status(401).json({
         error: 'Unauthorized',
         message: 'Missing or invalid authorization header',
         hint: 'Please include: Authorization: Bearer YOUR_ACCESS_TOKEN',
@@ -1070,9 +1267,9 @@ router.get('/me', async (req, res) => {
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
 
     if (userError || !user) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Unauthorized',
-        message: 'Invalid or expired token' 
+        message: 'Invalid or expired token'
       });
     }
 
@@ -1114,9 +1311,9 @@ router.get('/me', async (req, res) => {
     res.status(200).json(response);
   } catch (error) {
     console.error('Error in GET /me:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal Server Error',
-      message: error.message 
+      message: error.message
     });
   }
 });
@@ -1124,10 +1321,32 @@ router.get('/me', async (req, res) => {
 // Get User Profile - Alternative endpoint (GET /api/auth/user)
 // Format 1: ส่งข้อมูลโดยตรง - ใช้ logic เดียวกับ /profile
 // รองรับ Bearer Token หรือ user_id
+/**
+ * @swagger
+ * /api/auth/user:
+ *   get:
+ *     summary: Get user data (Alternative to /profile)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: string
+ *         description: Optional user_id
+ *     responses:
+ *       200:
+ *         description: User data
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 router.get('/user', async (req, res) => {
   try {
     let userId = null;
-    
+
     // Option A: ตรวจสอบ Bearer Token (แนะนำ)
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -1144,7 +1363,7 @@ router.get('/user', async (req, res) => {
         console.log('[AUTH /user] Token verification failed, trying user_id fallback');
       }
     }
-    
+
     // Option B: ใช้ user_id จาก query parameter (backward compatibility)
     if (!userId) {
       userId = req.query.user_id;
@@ -1157,8 +1376,8 @@ router.get('/user', async (req, res) => {
           console.log('[AUTH /user] Headers:', req.headers.authorization ? 'Has Authorization header' : 'No Authorization header');
           console.log('[AUTH /user] Query:', req.query);
           console.log('[AUTH /user] Body:', req.body);
-          
-          return res.status(401).json({ 
+
+          return res.status(401).json({
             error: 'Unauthorized',
             message: 'กรุณาระบุ Bearer Token หรือ user_id ใน query parameter',
             hint: 'ตรวจสอบว่า token ถูกต้องหรือไม่',
@@ -1230,8 +1449,8 @@ router.get('/user', async (req, res) => {
   } catch (error) {
     console.error('Error in GET /user:', error);
     console.error('Error stack:', error.stack);
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       error: 'Internal Server Error',
       message: 'เกิดข้อผิดพลาดจาก server',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -1240,6 +1459,25 @@ router.get('/user', async (req, res) => {
 });
 
 // Get user data by user_id (alternative endpoint)
+/**
+ * @swagger
+ * /api/auth/user/{userId}:
+ *   get:
+ *     summary: Get user data by ID path parameter
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User data
+ *       500:
+ *         description: Server error
+ */
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -1272,20 +1510,49 @@ router.get('/user/:userId', async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting user:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
 
 // Get user BMI data by user_id
+/**
+ * @swagger
+ * /api/auth/bmi:
+ *   post:
+ *     summary: Fetch BMI records
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user_id
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *               action:
+ *                 type: string
+ *                 enum: [get_all, get_latest]
+ *                 default: get_all
+ *     responses:
+ *       200:
+ *         description: BMI records
+ *       400:
+ *         description: Error
+ *       500:
+ *         description: Server error
+ */
 router.post('/bmi', async (req, res) => {
   try {
     const { user_id, action = 'get_all' } = req.body;
 
     if (!user_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'กรุณาระบุ user_id',
         success: false
       });
@@ -1303,14 +1570,14 @@ router.post('/bmi', async (req, res) => {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          return res.status(404).json({ 
+          return res.status(404).json({
             success: false,
-            error: 'ไม่พบข้อมูล BMI สำหรับผู้ใช้รายนี้' 
+            error: 'ไม่พบข้อมูล BMI สำหรับผู้ใช้รายนี้'
           });
         }
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: error.message 
+          error: error.message
         });
       }
 
@@ -1327,9 +1594,9 @@ router.post('/bmi', async (req, res) => {
         .order('id', { ascending: false }); // ใช้ id แทน date/created_at (รองรับทุกกรณี)
 
       if (error) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: error.message 
+          error: error.message
         });
       }
 
@@ -1342,9 +1609,9 @@ router.post('/bmi', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching BMI:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });

@@ -14,31 +14,75 @@ const router = express.Router();
  *   status: string (optional, default: 'completed')
  * }
  */
+/**
+ * @swagger
+ * tags:
+ *   name: Transactions
+ *   description: การบันทึกและจัดการประวัติการทำรายการ
+ */
+
+/**
+ * @swagger
+ * /api/transactions:
+ *   post:
+ *     summary: บันทึกประวัติการทำรายการ
+ *     tags: [Transactions]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user_id
+ *               - transaction_type
+ *               - action
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *               transaction_type:
+ *                 type: string
+ *                 description: ประเภทของธุรกรรม (เช่น bmi_record, barcode_scan)
+ *               action:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               metadata:
+ *                 type: object
+ *               status:
+ *                 type: string
+ *                 default: completed
+ *     responses:
+ *       201:
+ *         description: บันทึกสำเร็จ
+ *       400:
+ *         description: ข้อมูลไม่ครบถ้วน
+ */
 router.post('/', async (req, res) => {
   try {
-    const { 
-      user_id, 
-      transaction_type, 
-      action, 
-      description, 
+    const {
+      user_id,
+      transaction_type,
+      action,
+      description,
       metadata,
       status = 'completed'
     } = req.body;
 
     // Validate required fields
     if (!user_id || !transaction_type || !action) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'กรุณาระบุ user_id, transaction_type และ action' 
+        error: 'กรุณาระบุ user_id, transaction_type และ action'
       });
     }
 
     // Validate status
     const validStatuses = ['pending', 'completed', 'failed', 'cancelled'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: `status ต้องเป็นหนึ่งใน: ${validStatuses.join(', ')}` 
+        error: `status ต้องเป็นหนึ่งใน: ${validStatuses.join(', ')}`
       });
     }
 
@@ -73,9 +117,9 @@ router.post('/', async (req, res) => {
 
     if (error) {
       console.error('[TRANSACTIONS] Error creating transaction:', error);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: error.message 
+        error: error.message
       });
     }
 
@@ -87,9 +131,9 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('[TRANSACTIONS] Error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -98,13 +142,47 @@ router.post('/', async (req, res) => {
  * ดึงประวัติการทำรายการทั้งหมดของ user
  * GET /api/transactions?user_id=xxx&type=xxx&status=xxx&limit=10&offset=0
  */
+/**
+ * @swagger
+ * /api/transactions:
+ *   get:
+ *     summary: ดึงประวัติการทำรายการทั้งหมดของ user
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: query
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: transaction_type
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *     responses:
+ *       200:
+ *         description: รายการประวัติ
+ */
 router.get('/', async (req, res) => {
   try {
-    const { 
-      user_id, 
-      transaction_type, 
-      status, 
-      limit = 50, 
+    const {
+      user_id,
+      transaction_type,
+      status,
+      limit = 50,
       offset = 0,
       start_date,
       end_date
@@ -117,9 +195,9 @@ router.get('/', async (req, res) => {
 
     // Filter by user_id (required)
     if (!user_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'กรุณาระบุ user_id' 
+        error: 'กรุณาระบุ user_id'
       });
     }
     query = query.eq('user_id', user_id);
@@ -154,9 +232,9 @@ router.get('/', async (req, res) => {
 
     if (error) {
       console.error('[TRANSACTIONS] Error fetching transactions:', error);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: error.message 
+        error: error.message
       });
     }
 
@@ -170,9 +248,9 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('[TRANSACTIONS] Error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -180,6 +258,24 @@ router.get('/', async (req, res) => {
 /**
  * ดึงประวัติการทำรายการตาม ID
  * GET /api/transactions/:id
+ */
+/**
+ * @swagger
+ * /api/transactions/{id}:
+ *   get:
+ *     summary: ดึงประวัติการทำรายการตาม ID
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: รายละเอียดประวัติ
+ *       404:
+ *         description: ไม่พบข้อมูล
  */
 router.get('/:id', async (req, res) => {
   try {
@@ -193,14 +289,14 @@ router.get('/:id', async (req, res) => {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          error: 'ไม่พบประวัติการทำรายการ' 
+          error: 'ไม่พบประวัติการทำรายการ'
         });
       }
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: error.message 
+        error: error.message
       });
     }
 
@@ -210,9 +306,9 @@ router.get('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('[TRANSACTIONS] Error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -226,6 +322,36 @@ router.get('/:id', async (req, res) => {
  *   metadata: object (optional)
  * }
  */
+/**
+ * @swagger
+ * /api/transactions/{id}:
+ *   put:
+ *     summary: อัปเดตสถานะการทำรายการ
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, completed, failed, cancelled]
+ *               description:
+ *                 type: string
+ *               metadata:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: อัปเดตสำเร็จ
+ */
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -236,9 +362,9 @@ router.put('/:id', async (req, res) => {
     if (status) {
       const validStatuses = ['pending', 'completed', 'failed', 'cancelled'];
       if (!validStatuses.includes(status)) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: `status ต้องเป็นหนึ่งใน: ${validStatuses.join(', ')}` 
+          error: `status ต้องเป็นหนึ่งใน: ${validStatuses.join(', ')}`
         });
       }
       updateData.status = status;
@@ -253,9 +379,9 @@ router.put('/:id', async (req, res) => {
     }
 
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'กรุณาระบุข้อมูลที่ต้องการอัปเดต' 
+        error: 'กรุณาระบุข้อมูลที่ต้องการอัปเดต'
       });
     }
 
@@ -267,16 +393,16 @@ router.put('/:id', async (req, res) => {
 
     if (error) {
       console.error('[TRANSACTIONS] Error updating transaction:', error);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: error.message 
+        error: error.message
       });
     }
 
     if (!data || data.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'ไม่พบประวัติการทำรายการ' 
+        error: 'ไม่พบประวัติการทำรายการ'
       });
     }
 
@@ -286,9 +412,9 @@ router.put('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('[TRANSACTIONS] Error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -296,6 +422,22 @@ router.put('/:id', async (req, res) => {
 /**
  * ลบประวัติการทำรายการ
  * DELETE /api/transactions/:id
+ */
+/**
+ * @swagger
+ * /api/transactions/{id}:
+ *   delete:
+ *     summary: ลบประวัติการทำรายการ
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ลบสำเร็จ
  */
 router.delete('/:id', async (req, res) => {
   try {
@@ -308,9 +450,9 @@ router.delete('/:id', async (req, res) => {
 
     if (error) {
       console.error('[TRANSACTIONS] Error deleting transaction:', error);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: error.message 
+        error: error.message
       });
     }
 
@@ -320,9 +462,9 @@ router.delete('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('[TRANSACTIONS] Error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -330,6 +472,32 @@ router.delete('/:id', async (req, res) => {
 /**
  * ดึงสถิติการทำรายการของ user
  * GET /api/transactions/stats/:user_id?start_date=xxx&end_date=xxx
+ */
+/**
+ * @swagger
+ * /api/transactions/stats/{user_id}:
+ *   get:
+ *     summary: ดึงสถิติการทำรายการของ user
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: start_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: end_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: สถิติการทำรายการ
  */
 router.get('/stats/:user_id', async (req, res) => {
   try {
@@ -353,9 +521,9 @@ router.get('/stats/:user_id', async (req, res) => {
 
     if (error) {
       console.error('[TRANSACTIONS] Error fetching stats:', error);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: error.message 
+        error: error.message
       });
     }
 
@@ -394,9 +562,9 @@ router.get('/stats/:user_id', async (req, res) => {
     });
   } catch (error) {
     console.error('[TRANSACTIONS] Error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
